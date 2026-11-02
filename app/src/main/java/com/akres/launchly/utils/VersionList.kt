@@ -18,11 +18,6 @@ data class VersionData(
     val architecture: Architecture,
 ) : Serializable
 
-enum class OptionMode {
-    ADD,
-    EDIT,
-}
-
 class VersionsViewModel(
     private val arch: String,
 ) : ViewModel() {

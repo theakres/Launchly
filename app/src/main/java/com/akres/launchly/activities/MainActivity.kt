@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -69,6 +70,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -91,7 +93,6 @@ import com.akres.launchly.broadcast_receivers.PackageStatusReceiver
 import com.akres.launchly.screens.ConfirmationDialog
 import com.akres.launchly.screens.Onboarding
 import com.akres.launchly.screens.SettingsDialog
-import com.akres.launchly.screens.VersionOptions
 import com.akres.launchly.screens.VersionSelector
 import com.akres.launchly.ui.theme.LaunchlyTheme
 import com.akres.launchly.utils.ActionButton
@@ -217,11 +218,9 @@ fun Main(navHostController: NavHostController) {
     val downloadedVersions = versionDbViewModel.downloadedVersions
     val showVersionSelector = remember { mutableStateOf(false) }
     val showSettings = remember { mutableStateOf(false) }
-    val showOptions = remember { mutableStateOf(false) }
 
     val versionsViewModels = remember { Build.SUPPORTED_ABIS.map { VersionsViewModel(it) } }
     var userProfileInfo by remember { mutableStateOf(listOf<String?>()) }
-    var savedVersionData by remember { mutableStateOf<SavedVersionData?>(null) }
 
     LaunchedEffect(Unit) {
         userProfileInfo = GPlayAPI.getUserProfileInfo(context)
@@ -260,10 +259,6 @@ fun Main(navHostController: NavHostController) {
                     isRefreshing = false
                 }
             },
-            onEditVersion = { installationId ->
-                savedVersionData = downloadedVersions.find { it.installationId == installationId }
-                showOptions.value = true
-            },
             onRemoveVersion = {
                 versionDbHelper.removeVersion(it)
                 val fileToDelete = File(context.filesDir, "versions/$it/")
@@ -296,19 +291,6 @@ fun Main(navHostController: NavHostController) {
                 }
             },
         )
-        if (savedVersionData != null) {
-            VersionOptions(
-                showDialog = showOptions.value,
-                savedVersionData = savedVersionData!!,
-                onConfirmation = { version ->
-                    showOptions.value = false
-                    if (version != null) {
-                        updateInfo(context, version, versionDbViewModel)
-                    }
-                },
-            )
-        }
-
         SettingsDialog(
             showDialog = showSettings.value,
             navHostController = navHostController,
@@ -316,35 +298,6 @@ fun Main(navHostController: NavHostController) {
             onDismissRequest = { showSettings.value = false },
         )
     }
-}
-
-private fun loadExternalApps(context: Context): List<Pair<SavedVersionData, String>> {
-    val packageManager = context.packageManager
-    val externalApps = mutableListOf<Pair<SavedVersionData, String>>()
-    val appPackages = listOf("com.mojang.minecraftpe")
-
-    for (packageName in appPackages) {
-        try {
-            val packageInfo = getPackageInfo(context, packageName)
-            if (getPackageInstallSource(context, packageName) == context.packageName) continue
-            val versionCode = packageInfo.let { PackageInfoCompat.getLongVersionCode(it) }
-            val packageAppName = packageInfo.applicationInfo?.loadLabel(packageManager).toString()
-            val appData =
-                SavedVersionData(
-                    name = packageAppName,
-                    installationId = packageInfo.applicationInfo?.loadLabel(packageManager).toString(),
-                    versionCode = versionCode.toString(),
-                    versionName = packageInfo.versionName ?: "Unknown",
-                    architecture = getPackageArch(packageInfo),
-                    status = Status.INSTALLED,
-                    patches = emptyList(),
-                    dateModified = System.currentTimeMillis(),
-                )
-            externalApps.add(Pair(appData, packageName))
-        } catch (_: Exception) {
-        }
-    }
-    return externalApps
 }
 
 private val client = OkHttpClient()
@@ -355,16 +308,13 @@ fun DownloadedVersions(
     items: SnapshotStateList<SavedVersionData>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
-    onEditVersion: (String) -> Unit,
     onRemoveVersion: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val versionDbViewModel: VersionDatabaseViewModel = viewModel()
     val context = LocalContext.current
-    val externalApps = remember { mutableStateListOf<Pair<SavedVersionData, String>>() }
     val isUpdating = remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        externalApps.addAll(loadExternalApps(context))
         try {
             getPackageInfo(context, "com.mojang.minecraftpe")
         } catch (_: Exception) {
@@ -380,8 +330,6 @@ fun DownloadedVersions(
     val packageStateReceiver =
         remember {
             PackageStatusReceiver { packageName, status ->
-                externalApps.clear()
-                externalApps.addAll(loadExternalApps(context))
                 if (packageName == "com.mojang.minecraftpe" && status == "removed" && !isUpdating.value) {
                     items.forEach {
                         if (it.status == Status.INSTALLED) {
@@ -412,30 +360,8 @@ fun DownloadedVersions(
         modifier = modifier,
     ) {
         LazyColumn(Modifier.fillMaxSize()) {
-            if (externalApps.isNotEmpty()) {
-                item {
-                    Category("Not managed by Launchy")
-                }
-            }
-            items(externalApps) { app ->
-                VersionItem(
-                    app.first,
-                    onRemoveVersion = {
-                        val intent = Intent(Intent.ACTION_DELETE)
-                        intent.data = "package:${app.second}".toUri()
-                        context.startActivity(intent)
-                    },
-                    isLaunchly = false,
-                    packageName = app.second,
-                )
-            }
-            if (items.isNotEmpty()) {
-                item {
-                    Category("Managed by Launchy")
-                }
-            }
             items(items.reversed(), key = { it.installationId }) {
-                VersionItem(it, onEditVersion, onRemoveVersion, isUpdating = isUpdating) { status ->
+                VersionItem(it, onRemoveVersion, isUpdating = isUpdating) { status ->
                     if (status == Status.INSTALLED) {
                         items.forEach { version ->
                             if (version.installationId != it.installationId && version.status == Status.INSTALLED) {
@@ -470,7 +396,6 @@ private fun updateInfo(
 @Composable
 fun VersionItem(
     savedVersionData: SavedVersionData,
-    onEditVersion: (String) -> Unit = {},
     onRemoveVersion: (String) -> Unit = {},
     isLaunchly: Boolean = true,
     packageName: String = "com.mojang.minecraftpe",
@@ -521,7 +446,6 @@ fun VersionItem(
         savedVersionData = savedVersionData,
         isLaunchly = isLaunchly,
         animatedAlpha = animatedAlpha,
-        onEditVersion = onEditVersion,
         onRemoveVersion = onRemoveVersion,
         isRemoving = isRemoving.value,
         isPaused = isPaused,
@@ -556,7 +480,6 @@ fun VersionItemLayout(
     savedVersionData: SavedVersionData,
     isLaunchly: Boolean,
     animatedAlpha: Float,
-    onEditVersion: (String) -> Unit,
     onRemoveVersion: (String) -> Unit,
     isRemoving: Boolean,
     isPaused: Boolean,
@@ -569,10 +492,9 @@ fun VersionItemLayout(
     val layoutMaxWidth = remember { mutableStateOf(0.dp) }
     BoxWithConstraints { layoutMaxWidth.value = maxWidth }
     val context = LocalContext.current
-    val maxWidth = if (isLaunchly) 300 else 150
+    val maxWidth = 100
     val swipeableState = rememberSwipeableState(initialValue = 0)
     val scope = rememberCoroutineScope()
-    val height = if (savedVersionData.status == Status.DOWNLOADING) 145.dp else 120.dp
     val isInstalled = savedVersionData.status == Status.INSTALLED
     val isDownloading = savedVersionData.status == Status.DOWNLOADING
     val density: Density = LocalDensity.current
@@ -581,7 +503,14 @@ fun VersionItemLayout(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(height * if (isRemoving) animatedAlpha else 1f)
+                .layout { measurable, constraints ->
+                    // shrink the card while it is being removed
+                    val placeable = measurable.measure(constraints)
+                    val scale = if (isRemoving) animatedAlpha else 1f
+                    layout(placeable.width, (placeable.height * scale).roundToInt()) {
+                        placeable.placeRelative(0, 0)
+                    }
+                }.height(IntrinsicSize.Min)
                 .alpha(if (isRemoving) animatedAlpha else 1f)
                 .swipeable(
                     state = swipeableState,
@@ -606,14 +535,6 @@ fun VersionItemLayout(
                 Modifier
                     .weight(1f)
                     .fillMaxHeight()
-            if (isLaunchly) {
-                ActionButton(actionModifier, Icons.Default.Edit, Color.Gray, {
-                    scope.launch {
-                        swipeableState.animateTo(0)
-                        onEditVersion(savedVersionData.installationId)
-                    }
-                })
-            }
             ActionButton(actionModifier, if (isInstalled) Icons.Default.Delete else Icons.Default.Close, Color.Red, {
                 scope.launch {
                     swipeableState.animateTo(0)
@@ -647,7 +568,7 @@ fun VersionItemLayout(
                             .weight(1f),
                 ) {
                     Text(
-                        savedVersionData.name.removePrefix("Minecraft").trim().ifEmpty { savedVersionData.versionName },
+                        savedVersionData.versionName,
                         style = MaterialTheme.typography.titleLarge,
                     )
                     Info("Code: ${savedVersionData.versionCode}")
