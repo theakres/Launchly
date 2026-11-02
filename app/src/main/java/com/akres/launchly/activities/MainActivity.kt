@@ -14,7 +14,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.rememberUpdatedState
@@ -110,6 +119,7 @@ import com.akres.launchly.utils.GPlayAPI.getApks
 import com.akres.launchly.utils.Info
 import com.akres.launchly.utils.SavedVersionData
 import com.akres.launchly.utils.SessionResult
+import com.akres.launchly.utils.Storage
 import com.akres.launchly.utils.Status
 import com.akres.launchly.utils.VersionDatabaseHelper
 import com.akres.launchly.utils.VersionDatabaseViewModel
@@ -148,17 +158,25 @@ class MainActivity : ComponentActivity() {
             .build()
             .setup()
 
-        if (!DownloadTracker.hasActive()) {
-            filesDir.walk().forEach {
-                if (it.isFile && it.name.endsWith(".temp")) {
-                    it.delete()
+        if (Storage.hasAccess(this)) {
+            Thread {
+                Storage.migrateLegacy(this)
+                if (!DownloadTracker.hasActive()) {
+                    Storage.root().walk().forEach {
+                        if (it.isFile && it.name.endsWith(".temp")) {
+                            it.delete()
+                        }
+                    }
                 }
-            }
+            }.start()
         }
 
         val sharedPreferences = getSharedPreferences("onboarding", MODE_PRIVATE)
         val accountPreferences = getSharedPreferences("accountData", Context.MODE_PRIVATE)
         val onboardingComplete = sharedPreferences.getBoolean("onboarding_complete", false)
+        if (onboardingComplete && !Storage.hasAccess(this)) {
+            Storage.requestAccess(this)
+        }
         setContent {
             LaunchlyTheme {
                 val navController = rememberNavController()
@@ -239,7 +257,11 @@ fun Main(navHostController: NavHostController) {
 
     Scaffold(
         floatingActionButton = {
-            if (!selectionMode) {
+            AnimatedVisibility(
+                visible = !selectionMode,
+                enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.8f),
+                exit = fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 0.8f),
+            ) {
                 ExtendedFloatingActionButton(
                     { Text("Add Version") },
                     { Icon(Icons.Default.Add, "Add") },
@@ -249,23 +271,39 @@ fun Main(navHostController: NavHostController) {
         },
         topBar = {
             TopAppBar(
-                title = { Text(if (selectionMode) "${selectedIds.size} selected" else "Launchly") },
+                title = {
+                    Crossfade(
+                        targetState = if (selectionMode) "${selectedIds.size} selected" else "Launchly",
+                        animationSpec = tween(200),
+                        label = "title",
+                    ) { Text(it) }
+                },
                 navigationIcon = {
-                    if (selectionMode) {
+                    AnimatedVisibility(
+                        visible = selectionMode,
+                        enter = fadeIn(tween(200)) + expandHorizontally(tween(200)),
+                        exit = fadeOut(tween(150)) + shrinkHorizontally(tween(150)),
+                    ) {
                         IconButton(onClick = { selectedIds.clear() }) {
                             Icon(Icons.Default.Close, "Cancel selection")
                         }
                     }
                 },
                 actions = {
-                    if (selectionMode) {
-                        IconButton(onClick = { showDeleteConfirm.value = true }) {
-                            Icon(Icons.Default.Delete, "Delete")
+                    Crossfade(
+                        targetState = selectionMode,
+                        animationSpec = tween(200),
+                        label = "actions",
+                    ) { selecting ->
+                        if (selecting) {
+                            IconButton(onClick = { showDeleteConfirm.value = true }) {
+                                Icon(Icons.Default.Delete, "Delete")
+                            }
+                        } else {
+                            IconButton(onClick = { showSettings.value = true }) {
+                                Icon(Icons.Default.Settings, "Settings")
+                            }
                         }
-                    } else {
-                        IconButton(onClick = {
-                            showSettings.value = true
-                        }) { Icon(Icons.Default.Settings, "Settings") }
                     }
                 },
             )
@@ -294,7 +332,7 @@ fun Main(navHostController: NavHostController) {
                 removingIds.remove(it)
                 DownloadTracker.cancel(context, it)
                 versionDbHelper.removeVersion(it)
-                val fileToDelete = File(context.filesDir, "versions/$it/")
+                val fileToDelete = Storage.versionDir(it)
                 if (fileToDelete.exists()) fileToDelete.deleteRecursively()
                 downloadedVersions.remove(downloadedVersions.find { version -> version.installationId == it })
             },
@@ -547,7 +585,13 @@ fun VersionItemLayout(
             } else {
                 MaterialTheme.colorScheme.surfaceContainerLow
             },
+        animationSpec = tween(220),
         label = "cardColor",
+    )
+    val cardScale by animateFloatAsState(
+        targetValue = if (selected) 0.97f else 1f,
+        animationSpec = tween(220),
+        label = "cardScale",
     )
 
     Box(
@@ -567,7 +611,10 @@ fun VersionItemLayout(
         Box(
             Modifier
                 .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
+                .graphicsLayer {
+                    scaleX = cardScale
+                    scaleY = cardScale
+                }.clip(MaterialTheme.shapes.medium)
                 .background(cardColor)
 
                 .pointerInput(Unit) {
@@ -739,6 +786,11 @@ suspend fun handleVersionAction(
 ) {
     when (action) {
         is VersionAction.StartDownload -> {
+            if (!Storage.hasAccess(context)) {
+                Toast.makeText(context, "Allow access to all files to save versions to /Launchly", Toast.LENGTH_LONG).show()
+                Storage.requestAccess(context)
+                return
+            }
             var totalSize = 0L
             try {
                 val urlToFileNameMap =
@@ -752,7 +804,7 @@ suspend fun handleVersionAction(
                 updateStatus(Status.DOWNLOADING)
                 DownloadTracker.newDownloader(id, client).startDownload(
                     urlToFileNameMap,
-                    File("${context.filesDir}/versions/${savedVersionData.installationId}"),
+                    Storage.versionDir(savedVersionData.installationId),
                 ) { status ->
                     when (status) {
                         is Downloader.DownloadStatus.OnProgress -> {
@@ -796,7 +848,7 @@ suspend fun handleVersionAction(
             println("Installing ${savedVersionData.name}")
             isLoading.value = true
             val apks =
-                File("${context.filesDir}/versions/${savedVersionData.installationId}/").listFiles { file ->
+                Storage.versionDir(savedVersionData.installationId).listFiles { file ->
                     file.isFile &&
                         file.name.endsWith(".apk")
                 }
