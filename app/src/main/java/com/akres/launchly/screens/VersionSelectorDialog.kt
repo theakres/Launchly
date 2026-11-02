@@ -48,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -60,6 +61,7 @@ import com.akres.launchly.utils.VersionsViewModel
 fun VersionSelector(
     showDialog: Boolean,
     versionsViewModels: List<VersionsViewModel>,
+    addedVersions: Set<String> = emptySet(),
     onConfirmation: (versions: List<VersionData>) -> Unit,
 ) {
     val archs = (Build.SUPPORTED_ABIS.map { Architecture.fromString(it).arch }).filter { it != "unknown" }
@@ -169,9 +171,11 @@ fun VersionSelector(
                                         items = filteredVersions,
                                         key = { it.code },
                                     ) { version ->
+                                        val added = "${version.code}|${version.architecture.arch}" in addedVersions
                                         VersionRow(
                                             version = version,
                                             selected = version in selectedVersions,
+                                            added = added,
                                             onClick = {
                                                 if (version in selectedVersions) selectedVersions.remove(version) else selectedVersions.add(version)
                                             },
@@ -216,14 +220,16 @@ fun VersionSelector(
 fun VersionRow(
     version: VersionData,
     selected: Boolean,
+    added: Boolean = false,
     onClick: () -> Unit,
     showVersionCode: Boolean,
 ) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(8.dp)
-            .clickable(onClick = onClick),
+            .alpha(if (added) 0.5f else 1f)
+            .clickable(enabled = !added, onClick = onClick)
+            .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column {
@@ -234,10 +240,18 @@ fun VersionRow(
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
+            if (added) {
+                Text(
+                    "Already added",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
         Spacer(Modifier.weight(1f))
         Checkbox(
             checked = selected,
+            enabled = !added,
             onCheckedChange = { onClick() },
         )
     }

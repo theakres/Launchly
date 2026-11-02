@@ -15,7 +15,6 @@ import androidx.core.content.ContextCompat
 import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.rememberUpdatedState
@@ -305,10 +304,12 @@ fun Main(navHostController: NavHostController) {
         VersionSelector(
             versionsViewModels = versionsViewModels,
             showDialog = showVersionSelector.value,
+            addedVersions = downloadedVersions.map { "${it.versionCode}|${it.architecture.arch}" }.toSet(),
             onConfirmation = { versions ->
                 showVersionSelector.value = false
                 val now = System.currentTimeMillis()
-                versions.forEachIndexed { index, version ->
+                val existing = downloadedVersions.map { "${it.versionCode}|${it.architecture.arch}" }.toMutableSet()
+                versions.filter { existing.add("${it.code}|${it.architecture.arch}") }.forEachIndexed { index, version ->
                     val newVersion =
                         SavedVersionData(
                             UUID.randomUUID().toString(),
@@ -647,18 +648,6 @@ fun VersionItemLayout(
                     context,
                     packageName,
                     onVersionAction,
-                )
-            }
-            if (selected) {
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = "Selected",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier =
-                        Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(10.dp)
-                            .size(20.dp),
                 )
             }
         }

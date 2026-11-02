@@ -105,7 +105,7 @@ fun AppSettingsDialog(
                     Text("Settings", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(24.dp, 0.dp))
                     Spacer(Modifier.height(16.dp))
                     Box(
-                        Modifier.fillMaxHeight(.7f),
+                        Modifier.weight(1f, fill = false),
                     ) {
                         Column(Modifier.verticalScroll(rememberScrollState())) {
                             Text(
