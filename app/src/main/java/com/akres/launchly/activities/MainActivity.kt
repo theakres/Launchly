@@ -13,9 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
@@ -108,8 +106,6 @@ import com.akres.launchly.utils.DropDown
 import com.akres.launchly.utils.GPlayAPI
 import com.akres.launchly.utils.GPlayAPI.getApks
 import com.akres.launchly.utils.Info
-import com.akres.launchly.utils.OptionMode
-import com.akres.launchly.utils.ProgressBox
 import com.akres.launchly.utils.SavedVersionData
 import com.akres.launchly.utils.SessionResult
 import com.akres.launchly.utils.Status
@@ -226,7 +222,6 @@ fun Main(navHostController: NavHostController) {
     val versionsViewModels = remember { Build.SUPPORTED_ABIS.map { VersionsViewModel(it) } }
     var userProfileInfo by remember { mutableStateOf(listOf<String?>()) }
     var savedVersionData by remember { mutableStateOf<SavedVersionData?>(null) }
-    var optionMode by remember { mutableStateOf(OptionMode.ADD) }
 
     LaunchedEffect(Unit) {
         userProfileInfo = GPlayAPI.getUserProfileInfo(context)
@@ -267,7 +262,6 @@ fun Main(navHostController: NavHostController) {
             },
             onEditVersion = { installationId ->
                 savedVersionData = downloadedVersions.find { it.installationId == installationId }
-                optionMode = OptionMode.EDIT
                 showOptions.value = true
             },
             onRemoveVersion = {
@@ -282,22 +276,23 @@ fun Main(navHostController: NavHostController) {
         VersionSelector(
             versionsViewModels = versionsViewModels,
             showDialog = showVersionSelector.value,
-            onConfirmation = { version ->
+            onConfirmation = { versions ->
                 showVersionSelector.value = false
-                if (version != null) {
-                    savedVersionData =
+                val now = System.currentTimeMillis()
+                versions.forEachIndexed { index, version ->
+                    val newVersion =
                         SavedVersionData(
                             UUID.randomUUID().toString(),
-                            "Minecraft ${version.name}",
+                            version.name,
                             version.code.toString(),
                             version.name,
                             version.architecture,
                             Status.NOT_DOWNLOADED,
                             listOf(),
-                            System.currentTimeMillis(),
+                            now + index,
                         )
-                    optionMode = OptionMode.ADD
-                    showOptions.value = true
+                    versionDbHelper.addVersion(newVersion)
+                    downloadedVersions.add(newVersion)
                 }
             },
         )
@@ -308,12 +303,7 @@ fun Main(navHostController: NavHostController) {
                 onConfirmation = { version ->
                     showOptions.value = false
                     if (version != null) {
-                        if (optionMode == OptionMode.ADD) {
-                            versionDbHelper.addVersion(version)
-                            downloadedVersions.add(version)
-                        } else {
-                            updateInfo(context, version, versionDbViewModel)
-                        }
+                        updateInfo(context, version, versionDbViewModel)
                     }
                 },
             )
@@ -582,28 +572,10 @@ fun VersionItemLayout(
     val maxWidth = if (isLaunchly) 300 else 150
     val swipeableState = rememberSwipeableState(initialValue = 0)
     val scope = rememberCoroutineScope()
-    val height = if (savedVersionData.status == Status.DOWNLOADING) 180.dp else 120.dp
+    val height = if (savedVersionData.status == Status.DOWNLOADING) 145.dp else 120.dp
     val isInstalled = savedVersionData.status == Status.INSTALLED
     val isDownloading = savedVersionData.status == Status.DOWNLOADING
-    val progress =
-        if (isDownloading) {
-            downloadInfo?.fraction ?: 0f
-        } else if (installProgress > -1) {
-            installProgress / 100f
-        } else {
-            1f
-        }
     val density: Density = LocalDensity.current
-    val animatedProgress =
-        animateFloatAsState(
-            targetValue = progress,
-            animationSpec =
-                tween(
-                    durationMillis = 1000,
-                    easing = LinearOutSlowInEasing,
-                ),
-            label = "progress",
-        )
 
     Box(
         modifier =
@@ -654,13 +626,11 @@ fun VersionItemLayout(
             })
         }
 
-        ProgressBox(
+        Box(
             Modifier
                 .offset { IntOffset(swipeableState.offset.value.roundToInt(), 0) }
                 .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.surfaceContainerLow),
-            MaterialTheme.colorScheme.surfaceContainerHigh,
-            animatedProgress.value,
         ) {
             Row(
                 modifier =
@@ -676,8 +646,11 @@ fun VersionItemLayout(
                             .fillMaxHeight()
                             .weight(1f),
                 ) {
-                    Text(savedVersionData.name, style = MaterialTheme.typography.titleLarge)
-                    Info("Version: ${savedVersionData.versionName}, Code: ${savedVersionData.versionCode}")
+                    Text(
+                        savedVersionData.name.removePrefix("Minecraft").trim().ifEmpty { savedVersionData.versionName },
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    Info("Code: ${savedVersionData.versionCode}")
                     Info("Architecture: ${savedVersionData.architecture}")
                     if (savedVersionData.patches.isNotEmpty()) Info("Patches: ${savedVersionData.patches.joinToString()}")
                     if (isDownloading) {

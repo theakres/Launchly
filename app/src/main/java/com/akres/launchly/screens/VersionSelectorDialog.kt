@@ -30,7 +30,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -42,6 +42,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,12 +60,12 @@ import com.akres.launchly.utils.VersionsViewModel
 fun VersionSelector(
     showDialog: Boolean,
     versionsViewModels: List<VersionsViewModel>,
-    onConfirmation: (version: VersionData?) -> Unit,
+    onConfirmation: (versions: List<VersionData>) -> Unit,
 ) {
     val archs = (Build.SUPPORTED_ABIS.map { Architecture.fromString(it).arch }).filter { it != "unknown" }
     var animateIn by remember { mutableStateOf(false) }
     var selectedArch by remember { mutableStateOf(Architecture.ARM64) }
-    var selectedVersion by remember { mutableStateOf<VersionData?>(null) }
+    val selectedVersions = remember { mutableStateListOf<VersionData>() }
     var searchQuery by remember { mutableStateOf("") }
     var showAnimatedDialog by remember { mutableStateOf(false) }
 
@@ -85,9 +86,9 @@ fun VersionSelector(
     BasicAlertDialog(
         onDismissRequest = {
             selectedArch = Architecture.ARM64
-            selectedVersion = null
+            selectedVersions.clear()
             searchQuery = ""
-            onConfirmation(null)
+            onConfirmation(emptyList())
             animateIn = false
         },
         properties = DialogProperties(usePlatformDefaultWidth = !fullScreen),
@@ -181,8 +182,10 @@ fun VersionSelector(
                                     ) { version ->
                                         VersionRow(
                                             version = version,
-                                            selectedVersion = selectedVersion,
-                                            onClick = { selectedVersion = version },
+                                            selected = version in selectedVersions,
+                                            onClick = {
+                                                if (version in selectedVersions) selectedVersions.remove(version) else selectedVersions.add(version)
+                                            },
                                             showVersionCode = showVersionCode,
                                         )
                                         if (showDividers) HorizontalDivider()
@@ -193,9 +196,12 @@ fun VersionSelector(
                     }
                     TextButton(
                         onClick = {
-                            onConfirmation(selectedVersion)
+                            // keep the order in which versions appear in the lists
+                            val ordered =
+                                versionsViewModels.flatMap { vm -> vm.versionData.value.filter { it in selectedVersions } }
+                            onConfirmation(ordered)
                             selectedArch = Architecture.ARM64
-                            selectedVersion = null
+                            selectedVersions.clear()
                                             searchQuery = ""
                             animateIn = false
                         },
@@ -204,7 +210,7 @@ fun VersionSelector(
                                 .align(Alignment.End)
                                 .padding(top = 16.dp),
                     ) {
-                        Text(selectedVersion?.name?.let { "Confirm ($it)" } ?: "Close")
+                        Text(if (selectedVersions.isEmpty()) "Close" else "Confirm")
                     }
                 }
             }
@@ -220,7 +226,7 @@ fun VersionSelector(
 @Composable
 fun VersionRow(
     version: VersionData,
-    selectedVersion: VersionData?,
+    selected: Boolean,
     onClick: () -> Unit,
     showVersionCode: Boolean,
 ) {
@@ -241,9 +247,9 @@ fun VersionRow(
             }
         }
         Spacer(Modifier.weight(1f))
-        RadioButton(
-            selected = selectedVersion?.name == version.name,
-            onClick = onClick,
+        Checkbox(
+            checked = selected,
+            onCheckedChange = { onClick() },
         )
     }
 }

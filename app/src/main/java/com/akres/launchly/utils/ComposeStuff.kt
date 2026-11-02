@@ -79,25 +79,6 @@ fun ActionButton(
 }
 
 @Composable
-fun ProgressBox(
-    modifier: Modifier,
-    progressColor: Color,
-    progress: Float,
-    content: @Composable () -> Unit,
-) {
-    Box(modifier) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(progress)
-                    .background(progressColor),
-        )
-        content()
-    }
-}
-
-@Composable
 fun DropDown(
     menu: List<Pair<String, () -> Unit>>,
     expanded: MutableState<Boolean>,

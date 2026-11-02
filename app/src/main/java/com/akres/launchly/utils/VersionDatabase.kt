@@ -123,7 +123,8 @@ class VersionDatabaseHelper(
                             patches =
                                 cursor
                                     .getString(cursor.getColumnIndexOrThrow("patches"))
-                                    .split(","),
+                                    .split(",")
+                                    .filter { it.isNotEmpty() },
                             dateModified = cursor.getLong(cursor.getColumnIndexOrThrow("dateModified")),
                         ),
                     )
