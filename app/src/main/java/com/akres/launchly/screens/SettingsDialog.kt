@@ -2,8 +2,6 @@ package com.akres.launchly.screens
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -23,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
@@ -46,11 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.LinkAnnotation
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
@@ -159,34 +152,8 @@ fun SettingsDialog(
                         Setting_Option("Settings", Icons.Default.Settings) {
                             showAppSettings = true
                         }
-                        Setting_Option("About", Icons.Default.Info) {
-                            val intent = Intent(Intent.ACTION_VIEW)
-                            intent.data = Uri.parse("https://github.com/Zeuroux/Launchly/blob/master/README.md")
-                            context.startActivity(intent)
-                        }
                     }
-                    Text(
-                        text =
-                            buildAnnotatedString {
-                                withLink(
-                                    LinkAnnotation.Url(
-                                        "https://github.com/Zeuroux/Launchly/blob/master/POLICY.md",
-                                    ),
-                                ) {
-                                    append("Privacy Policy")
-                                }
-                                append(" • ")
-                                withLink(
-                                    LinkAnnotation.Url(
-                                        "https://github.com/Zeuroux/Launchly/blob/master/TERMS.md",
-                                    ),
-                                ) {
-                                    append("Terms of Service")
-                                }
-                            },
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center,
-                    )
+                    }
                 }
             }
             DisposableEffect(Unit) {

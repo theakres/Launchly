@@ -34,10 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SyncAlt
 import androidx.compose.material3.Button
@@ -47,7 +44,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableIntState
@@ -69,7 +65,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -182,35 +177,6 @@ fun Onboarding(
                 OnBoardItem(pages[page]) {
                     val key = pages[page].id
                     when (key) {
-                        "Start" -> {
-                            Column {
-                                LinkButton(
-                                    title = stringResource(R.string.onboarding_source_code),
-                                    icon = Icons.Default.Code,
-                                    description = stringResource(R.string.onboarding_source_code_description),
-                                    link = "https://github.com/Zeuroux/Launchly/",
-                                )
-                                LinkButton(
-                                    title = stringResource(R.string.onboarding_license),
-                                    icon = ImageVector.vectorResource(R.drawable.ic_license),
-                                    description = stringResource(R.string.onboarding_license_description),
-                                    link = "https://github.com/Zeuroux/Launchly/blob/master/LICENSE",
-                                )
-                                LinkButton(
-                                    title = stringResource(R.string.onboarding_privacy_policy),
-                                    icon = Icons.Default.Policy,
-                                    description = stringResource(R.string.onboarding_privacy_policy_description),
-                                    link = "https://github.com/Zeuroux/Launchly/blob/master/POLICY.md",
-                                )
-                                LinkButton(
-                                    title = stringResource(R.string.onboarding_disclaimer),
-                                    icon = Icons.Default.Info,
-                                    description = stringResource(R.string.onboarding_disclaimer_description),
-                                    link = "https://github.com/Zeuroux/Launchly/blob/master/DISCLAIMER.md",
-                                )
-                            }
-                        }
-
                         "SignIn" -> {
                             if (sharedPreferences.getString("accountName", null) == null) {
                                 preventForwardAt.intValue = pages.indexOfFirst { it.id == "SignIn" }
@@ -243,57 +209,6 @@ fun Onboarding(
                         .padding(16.dp),
                 currentPosition = pagerState.currentPage,
                 count = pages.size,
-            )
-        }
-    }
-}
-
-@Composable
-fun LinkButton(
-    title: String,
-    description: String,
-    icon: ImageVector,
-    link: String,
-) {
-    val context = LocalContext.current
-    Row(
-        modifier =
-            Modifier
-                .clickable {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link))
-                    context.startActivity(intent)
-                }.padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .size(24.dp),
-        )
-        VerticalDivider(
-            modifier = Modifier.height(30.dp).padding(horizontal = 8.dp),
-        )
-        Column {
-            Text(
-                modifier = Modifier.padding(end = 8.dp),
-                text = title,
-                style =
-                    TextStyle(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.W400,
-                        textAlign = TextAlign.Center,
-                    ),
-            )
-            Text(
-                text = description,
-                style =
-                    TextStyle(
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.W400,
-                        textAlign = TextAlign.Center,
-                    ),
             )
         }
     }
