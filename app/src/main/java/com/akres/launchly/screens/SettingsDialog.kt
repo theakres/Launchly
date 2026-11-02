@@ -153,7 +153,6 @@ fun SettingsDialog(
                             showAppSettings = true
                         }
                     }
-                    }
                 }
             }
             DisposableEffect(Unit) {
