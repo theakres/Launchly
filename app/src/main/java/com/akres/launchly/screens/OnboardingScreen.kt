@@ -1,4 +1,4 @@
-package com.zeuroux.launchly.screens
+package com.akres.launchly.screens
 
 import android.app.Activity
 import android.content.Context
@@ -76,9 +76,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.zeuroux.launchly.R
-import com.zeuroux.launchly.activities.LoginActivity
-import com.zeuroux.launchly.utils.GPlayAPI.getUserProfileArtwork
+import com.akres.launchly.R
+import com.akres.launchly.activities.LoginActivity
+import com.akres.launchly.utils.GPlayAPI.getUserProfileArtwork
 import kotlinx.coroutines.launch
 
 

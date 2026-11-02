@@ -1,4 +1,4 @@
-package com.zeuroux.launchly.screens
+package com.akres.launchly.screens
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -40,10 +40,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.canhub.cropper.CropImageView
-import com.zeuroux.launchly.utils.ActionButton
-import com.zeuroux.launchly.utils.CropImageViewCompose
-import com.zeuroux.launchly.utils.scaleBitmap
-import com.zeuroux.launchly.utils.squareBitmap
+import com.akres.launchly.utils.ActionButton
+import com.akres.launchly.utils.CropImageViewCompose
+import com.akres.launchly.utils.scaleBitmap
+import com.akres.launchly.utils.squareBitmap
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

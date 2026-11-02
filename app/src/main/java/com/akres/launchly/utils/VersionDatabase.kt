@@ -1,4 +1,4 @@
-package com.zeuroux.launchly.utils
+package com.akres.launchly.utils
 
 import android.content.ContentValues
 import android.content.Context

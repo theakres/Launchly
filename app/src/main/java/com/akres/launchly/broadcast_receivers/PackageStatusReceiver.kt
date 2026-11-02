@@ -1,4 +1,4 @@
-package com.zeuroux.launchly.broadcast_receivers
+package com.akres.launchly.broadcast_receivers
 
 import android.content.BroadcastReceiver
 import android.content.Context

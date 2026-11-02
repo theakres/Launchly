@@ -1,4 +1,4 @@
-package com.zeuroux.launchly.screens
+package com.akres.launchly.screens
 
 import android.content.Context
 import android.os.Build
@@ -51,10 +51,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-import com.zeuroux.launchly.utils.Architecture
-import com.zeuroux.launchly.utils.VersionData
-import com.zeuroux.launchly.utils.VersionType
-import com.zeuroux.launchly.utils.VersionsViewModel
+import com.akres.launchly.utils.Architecture
+import com.akres.launchly.utils.VersionData
+import com.akres.launchly.utils.VersionType
+import com.akres.launchly.utils.VersionsViewModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)

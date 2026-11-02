@@ -1,4 +1,4 @@
-package com.zeuroux.launchly.screens
+package com.akres.launchly.screens
 
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility

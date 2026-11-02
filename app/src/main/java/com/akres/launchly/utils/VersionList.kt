@@ -1,5 +1,5 @@
 
-package com.zeuroux.launchly.utils
+package com.akres.launchly.utils
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

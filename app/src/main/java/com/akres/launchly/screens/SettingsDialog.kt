@@ -1,4 +1,4 @@
-package com.zeuroux.launchly.screens
+package com.akres.launchly.screens
 
 import android.annotation.SuppressLint
 import android.content.Context

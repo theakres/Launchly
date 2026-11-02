@@ -1,4 +1,4 @@
-package com.zeuroux.launchly.screens
+package com.akres.launchly.screens
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -49,9 +49,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.zeuroux.launchly.utils.Category
-import com.zeuroux.launchly.utils.SavedVersionData
-import com.zeuroux.launchly.utils.saveIconToFile
+import com.akres.launchly.utils.Category
+import com.akres.launchly.utils.SavedVersionData
+import com.akres.launchly.utils.saveIconToFile
 import java.io.File
 
 

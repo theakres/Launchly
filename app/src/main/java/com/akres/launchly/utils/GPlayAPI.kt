@@ -1,5 +1,5 @@
 @file:Suppress("unused")
-package com.zeuroux.launchly.utils
+package com.akres.launchly.utils
 
 import android.app.ActivityManager
 import android.content.Context

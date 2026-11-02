@@ -1,4 +1,4 @@
-package com.zeuroux.launchly.activities
+package com.akres.launchly.activities
 
 import android.annotation.SuppressLint
 import android.app.Activity

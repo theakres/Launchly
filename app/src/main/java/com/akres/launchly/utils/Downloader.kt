@@ -1,4 +1,4 @@
-package com.zeuroux.launchly.utils
+package com.akres.launchly.utils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

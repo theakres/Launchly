@@ -1,4 +1,4 @@
-package com.zeuroux.launchly.ui.theme
+package com.akres.launchly.ui.theme
 
 import android.content.Context
 import android.content.SharedPreferences
