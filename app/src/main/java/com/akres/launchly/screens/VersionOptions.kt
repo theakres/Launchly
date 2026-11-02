@@ -1,14 +1,5 @@
 package com.akres.launchly.screens
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
-import android.net.Uri
-import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -17,21 +8,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -44,15 +28,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.akres.launchly.utils.Category
 import com.akres.launchly.utils.SavedVersionData
-import com.akres.launchly.utils.saveIconToFile
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,58 +39,13 @@ fun VersionOptions(
     savedVersionData: SavedVersionData,
     onConfirmation: (version: SavedVersionData?) -> Unit,
 ) {
-    val context = LocalContext.current
     var animateIn by remember { mutableStateOf(false) }
     var showAnimatedDialog by remember { mutableStateOf(false) }
 
     var name by remember { mutableStateOf(savedVersionData.name) }
-    var customIcon by remember { mutableStateOf(savedVersionData.customIcon) }
-    var icon by remember { mutableStateOf<Bitmap?>(null) }
-    val default =
-        context.assets
-            .open("default_icon.png")
-            .use {
-                BitmapFactory.decodeStream(it)
-            }.asImageBitmap()
-    val showImageCropper = remember { mutableStateOf(false) }
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
     LaunchedEffect(savedVersionData) {
         name = savedVersionData.name
-        customIcon = savedVersionData.customIcon
-        icon =
-            if (customIcon) {
-                BitmapFactory.decodeFile(
-                    "${context.filesDir}/versions/${savedVersionData.installationId}/custom_icon.png",
-                )
-            } else {
-                null
-            }
-        imageUri = null
     }
-    if (imageUri != null) {
-        ImageCropper(
-            showDialog = showImageCropper.value,
-            uri = imageUri!!,
-            onConfirmation = {
-                if (it != null) {
-                    icon = it
-                }
-                showImageCropper.value = false
-            },
-        )
-    }
-    val pickMediaLauncher =
-        rememberLauncherForActivityResult(
-            contract = PickVisualMedia(),
-            onResult = { uri ->
-                if (uri != null) {
-                    imageUri = uri
-                    showImageCropper.value = true
-                } else {
-                    Log.d("PhotoPicker", "No media selected")
-                }
-            },
-        )
     LaunchedEffect(showDialog) {
         if (showDialog) showAnimatedDialog = true
     }
@@ -153,93 +86,19 @@ fun VersionOptions(
                     )
                     Column {
                         Category("General")
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(80.dp),
-                        ) {
-                            val iconModifier =
-                                Modifier
-                                    .aspectRatio(1f)
-                                    .clip(MaterialTheme.shapes.medium)
-                                    .background(Color.Gray)
-                            Image(
-                                bitmap = if (customIcon) icon?.asImageBitmap() ?: default else default,
-                                contentDescription = "Version Icon",
-                                modifier = iconModifier,
-                            )
-
-                            TextField(
-                                value = name,
-                                onValueChange = { name = it },
-                                label = { Text("Display Name") },
-                                modifier =
-                                    Modifier
-                                        .padding(8.dp, 0.dp, 0.dp)
-                                        .fillMaxWidth(),
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Switch(
-                                checked = customIcon,
-                                onCheckedChange = {
-                                    customIcon = it
-                                },
-                                modifier = Modifier.padding(8.dp),
-                            )
-                            if (customIcon) {
-                                OutlinedButton(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    onClick = {
-                                        pickMediaLauncher.launch(
-                                            PickVisualMediaRequest(
-                                                PickVisualMedia.ImageOnly,
-                                            ),
-                                        )
-                                    },
-                                ) {
-                                    Text("Edit Icon")
-                                }
-                            } else {
-                                Text(
-                                    "Use Custom Icon",
-                                    modifier =
-                                        Modifier
-                                            .padding(8.dp)
-                                            .fillMaxWidth(),
-                                )
-                            }
-                        }
+                        TextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            label = { Text("Display Name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                     TextButton(
                         onClick = {
-                            val iconFile =
-                                File(
-                                    "${context.filesDir}/versions/${savedVersionData.installationId}/${
-                                        if (customIcon) "custom_icon" else "default_icon"
-                                    }.png",
-                                )
-                            val bitmapDrawable: Drawable? =
-                                if (customIcon && icon != null) {
-                                    BitmapDrawable(context.resources, icon)
-                                } else {
-                                    null
-                                }
-                            if (bitmapDrawable != null) {
-                                saveIconToFile(
-                                    bitmapDrawable,
-                                    iconFile,
-                                )
-                            }
-
                             onConfirmation(
                                 savedVersionData.copy(
                                     name = name,
-                                    customIcon = customIcon,
                                     dateModified = System.currentTimeMillis(),
                                 ),
                             )

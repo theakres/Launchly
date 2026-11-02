@@ -30,7 +30,6 @@ data class SavedVersionData(
     val architecture: Architecture,
     val status: Status,
     val patches: List<String>,
-    val customIcon: Boolean,
     val dateModified: Long,
 ) : Serializable
 
@@ -70,7 +69,6 @@ class VersionDatabaseHelper(
                 architecture TEXT,
                 status TEXT,
                 patches TEXT,
-                customIcon INTEGER,
                 dateModified INTEGER
             )
             """.trimIndent(),
@@ -97,7 +95,6 @@ class VersionDatabaseHelper(
                     put("architecture", savedVersionData.architecture.name)
                     put("status", savedVersionData.status.name)
                     put("patches", savedVersionData.patches.joinToString(","))
-                    put("customIcon", savedVersionData.customIcon)
                     put("dateModified", savedVersionData.dateModified)
                 }
             db.insertWithOnConflict("versions", null, values, SQLiteDatabase.CONFLICT_REPLACE)
@@ -127,7 +124,6 @@ class VersionDatabaseHelper(
                                 cursor
                                     .getString(cursor.getColumnIndexOrThrow("patches"))
                                     .split(","),
-                            customIcon = cursor.getInt(cursor.getColumnIndexOrThrow("customIcon")) == 1,
                             dateModified = cursor.getLong(cursor.getColumnIndexOrThrow("dateModified")),
                         ),
                     )
@@ -147,7 +143,6 @@ class VersionDatabaseHelper(
                     put("architecture", savedVersionData.architecture.name)
                     put("status", savedVersionData.status.name)
                     put("patches", savedVersionData.patches.joinToString(","))
-                    put("customIcon", savedVersionData.customIcon)
                     put("dateModified", savedVersionData.dateModified)
                 }
             db.update("versions", values, "id = ?", arrayOf(savedVersionData.installationId))

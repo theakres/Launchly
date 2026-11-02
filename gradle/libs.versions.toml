@@ -1,7 +1,6 @@
 [versions]
 ackpine = "0.9.4"
 agp = "8.7.3"
-androidImageCropper = "4.6.0"
 apksig = "8.8.0"
 axml = "c183ca1"
 coilCompose = "3.0.4"
@@ -30,7 +29,6 @@ vectordrawable = "1.2.0"
 [libraries]
 ackpine-core = { module = "ru.solrudev.ackpine:ackpine-core", version.ref = "ackpine" }
 ackpine-splits = { module = "ru.solrudev.ackpine:ackpine-splits", version.ref = "ackpine" }
-android-image-cropper = { module = "com.vanniktech:android-image-cropper", version.ref = "androidImageCropper" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRuntime" }

@@ -47,23 +47,6 @@ fun getPackageInstallSource(
         context.packageManager.getInstallerPackageName(packageName)
     }
 
-fun saveIconToFile(
-    icon: Drawable,
-    destination: File,
-) {
-    try {
-        if (!destination.exists() || BitmapFactory.decodeFile(destination.absolutePath)?.let { !icon.toBitmap().sameAs(it) } != false) {
-            destination.parentFile?.takeIf { !it.exists() }?.mkdirs()
-            destination.outputStream().use { outputStream ->
-                icon.toBitmap().compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-            }
-        }
-    } catch (e: IOException) {
-        e.printStackTrace()
-        println("SaveIcon: Failed to save icon: ${e.message}")
-    }
-}
-
 fun getPackageArch(packageInfo: PackageInfo): Architecture =
     packageInfo.applicationInfo?.nativeLibraryDir?.let {
         when {

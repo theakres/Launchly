@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
@@ -17,7 +16,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
@@ -74,7 +72,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -123,7 +120,6 @@ import com.akres.launchly.utils.getPackageArch
 import com.akres.launchly.utils.getPackageInfo
 import com.akres.launchly.utils.getPackageInstallSource
 import com.akres.launchly.utils.installPackage
-import com.akres.launchly.utils.saveIconToFile
 import com.akres.launchly.utils.uninstallApp
 import com.dzeio.crashhandler.CrashHandler
 import kotlinx.coroutines.CoroutineScope
@@ -298,7 +294,6 @@ fun Main(navHostController: NavHostController) {
                             version.architecture,
                             Status.NOT_DOWNLOADED,
                             listOf(),
-                            false,
                             System.currentTimeMillis(),
                         )
                     optionMode = OptionMode.ADD
@@ -344,10 +339,6 @@ private fun loadExternalApps(context: Context): List<Pair<SavedVersionData, Stri
             if (getPackageInstallSource(context, packageName) == context.packageName) continue
             val versionCode = packageInfo.let { PackageInfoCompat.getLongVersionCode(it) }
             val packageAppName = packageInfo.applicationInfo?.loadLabel(packageManager).toString()
-            saveIconToFile(
-                packageInfo.applicationInfo?.loadIcon(packageManager)!!,
-                File("${context.filesDir}/versions/$packageAppName/default_icon.png"),
-            )
             val appData =
                 SavedVersionData(
                     name = packageAppName,
@@ -357,7 +348,6 @@ private fun loadExternalApps(context: Context): List<Pair<SavedVersionData, Stri
                     architecture = getPackageArch(packageInfo),
                     status = Status.INSTALLED,
                     patches = emptyList(),
-                    customIcon = false,
                     dateModified = System.currentTimeMillis(),
                 )
             externalApps.add(Pair(appData, packageName))
@@ -679,32 +669,6 @@ fun VersionItemLayout(
                         .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                val iconFile =
-                    File(
-                        "${context.filesDir}/versions/${savedVersionData.installationId}/${
-                            if (savedVersionData.customIcon) "custom_icon" else "default_icon"
-                        }.png",
-                    )
-
-                Image(
-                    bitmap =
-                        if (iconFile.exists()) {
-                            BitmapFactory
-                                .decodeFile(iconFile.absolutePath)
-                                .asImageBitmap()
-                        } else {
-                            BitmapFactory
-                                .decodeStream(context.assets.open("default_icon.png"))
-                                .asImageBitmap()
-                        },
-                    contentDescription = "Version Icon",
-                    modifier =
-                        Modifier
-                            .aspectRatio(1f)
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(Color.Gray),
-                )
-
                 Column(
                     modifier =
                         Modifier
@@ -939,19 +903,7 @@ suspend fun handleVersionAction(
                         }
 
                         is SessionResult.OnSuccess -> {
-                            val iconFile =
-                                File(
-                                    "${context.filesDir}/versions/${savedVersionData.installationId}/${
-                                        if (savedVersionData.customIcon) "custom_icon" else "default_icon"
-                                    }.png",
-                                )
                             installProgress.intValue = -1
-                            if (!savedVersionData.customIcon) {
-                                saveIconToFile(
-                                    context.packageManager.getApplicationIcon(packageName),
-                                    iconFile,
-                                )
-                            }
                             isLoading.value = false
                             updateStatus(Status.INSTALLED)
 

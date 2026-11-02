@@ -1,6 +1,5 @@
 package com.akres.launchly.utils
 
-import android.view.ViewGroup.LayoutParams
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -25,8 +24,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import com.canhub.cropper.CropImageView
 
 @Composable
 fun Category(
@@ -126,26 +123,3 @@ fun f(downloadProgress: Float) = "%.2f".format(downloadProgress)
 
 @Composable
 fun Info(text: String) = Text(text, style = MaterialTheme.typography.bodySmall, overflow = TextOverflow.Ellipsis)
-
-@Composable
-fun CropImageViewCompose(
-    modifier: Modifier = Modifier,
-    configureCropImageView: CropImageView.() -> Unit,
-) {
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center,
-    ) {
-        AndroidView(
-            factory = { context ->
-                CropImageView(context).apply {
-                    configureCropImageView()
-                }
-            },
-            update = {
-                it.layoutParams.width = LayoutParams.MATCH_PARENT
-                configureCropImageView(it)
-            },
-        )
-    }
-}
