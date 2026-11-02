@@ -15,53 +15,56 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
+private val DarkColorScheme =
+    darkColorScheme(
+        primary = Purple80,
+        secondary = PurpleGrey80,
+        tertiary = Pink80,
+    )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-)
+private val LightColorScheme =
+    lightColorScheme(
+        primary = Purple40,
+        secondary = PurpleGrey40,
+        tertiary = Pink40,
+    )
 
 @Composable
-fun LaunchlyTheme(
-    content: @Composable () -> Unit
-) {
+fun LaunchlyTheme(content: @Composable () -> Unit) {
     val context = LocalContext.current
     val sharedPreferences = context.getSharedPreferences("ui_prefs", Context.MODE_PRIVATE)
 
     val isDarkTheme = isSystemInDarkTheme()
-    val darkTheme = remember {
-        mutableStateOf(
-            sharedPreferences.getBoolean("dark_theme", isDarkTheme).also { defaultValue ->
-                if (!sharedPreferences.contains("dark_theme")) {
-                    sharedPreferences.edit().putBoolean("dark_theme", defaultValue).apply()
-                }
-            }
-        )
-    }
+    val darkTheme =
+        remember {
+            mutableStateOf(
+                sharedPreferences.getBoolean("dark_theme", isDarkTheme).also { defaultValue ->
+                    if (!sharedPreferences.contains("dark_theme")) {
+                        sharedPreferences.edit().putBoolean("dark_theme", defaultValue).apply()
+                    }
+                },
+            )
+        }
 
-    val dynamicColor = remember {
-        mutableStateOf(
-            sharedPreferences.getBoolean("dynamic_color", true).also { defaultValue ->
-                if (!sharedPreferences.contains("dynamic_color")) {
-                    sharedPreferences.edit().putBoolean("dynamic_color", defaultValue).apply()
-                }
-            }
-        )
-    }
+    val dynamicColor =
+        remember {
+            mutableStateOf(
+                sharedPreferences.getBoolean("dynamic_color", true).also { defaultValue ->
+                    if (!sharedPreferences.contains("dynamic_color")) {
+                        sharedPreferences.edit().putBoolean("dynamic_color", defaultValue).apply()
+                    }
+                },
+            )
+        }
 
     DisposableEffect(sharedPreferences) {
-        val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
-            when (key) {
-                "dark_theme" -> darkTheme.value = prefs.getBoolean("dark_theme", isDarkTheme)
-                "dynamic_color" -> dynamicColor.value = prefs.getBoolean("dynamic_color", true)
+        val listener =
+            SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+                when (key) {
+                    "dark_theme" -> darkTheme.value = prefs.getBoolean("dark_theme", isDarkTheme)
+                    "dynamic_color" -> dynamicColor.value = prefs.getBoolean("dynamic_color", true)
+                }
             }
-        }
         sharedPreferences.registerOnSharedPreferenceChangeListener(listener)
 
         onDispose {
@@ -69,18 +72,24 @@ fun LaunchlyTheme(
         }
     }
 
-    val colorScheme = when {
-        dynamicColor.value && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            if (darkTheme.value) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
+    val colorScheme =
+        when {
+            dynamicColor.value && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                if (darkTheme.value) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            }
 
-        darkTheme.value -> DarkColorScheme
-        else -> LightColorScheme
-    }
+            darkTheme.value -> {
+                DarkColorScheme
+            }
+
+            else -> {
+                LightColorScheme
+            }
+        }
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        content = content
+        content = content,
     )
 }

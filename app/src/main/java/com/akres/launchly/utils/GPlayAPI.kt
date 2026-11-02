@@ -1,4 +1,5 @@
 @file:Suppress("unused")
+
 package com.akres.launchly.utils
 
 import android.app.ActivityManager
@@ -27,8 +28,8 @@ import javax.microedition.khronos.egl.EGLDisplay
 data class ApkData(
     val url: String,
     val name: String,
-    val size: Long
-): Serializable
+    val size: Long,
+) : Serializable
 
 object GPlayAPI {
     private fun getAuthData(context: Context): AuthData {
@@ -44,24 +45,27 @@ object GPlayAPI {
             email = email,
             token = token,
             tokenType = AuthHelper.Token.AAS,
-            properties = getNativeDeviceProperties(context)
+            properties = getNativeDeviceProperties(context),
         )
     }
 
-    suspend fun getApks(versionCode: Int, context: Context): List<ApkData> {
-        return withContext(Dispatchers.IO) {
+    suspend fun getApks(
+        versionCode: Int,
+        context: Context,
+    ): List<ApkData> =
+        withContext(Dispatchers.IO) {
             val authData = getAuthData(context)
-            val files = PurchaseHelper(authData).purchase(
-                "com.mojang.minecraftpe",
-                versionCode,
-                0
-            )
+            val files =
+                PurchaseHelper(authData).purchase(
+                    "com.mojang.minecraftpe",
+                    versionCode,
+                    0,
+                )
             files.map { ApkData(it.url, it.name, it.size) }
         }
-    }
 
-    suspend fun getUserProfileInfo(context: Context): List<String?> {
-        return withContext(Dispatchers.IO) {
+    suspend fun getUserProfileInfo(context: Context): List<String?> =
+        withContext(Dispatchers.IO) {
             try {
                 val authData = getAuthData(context)
                 val userProfile = UserProfileHelper(authData).getUserProfile()
@@ -70,10 +74,9 @@ object GPlayAPI {
                 emptyList()
             }
         }
-    }
 
-    suspend fun getUserProfileArtwork(context: Context): String? {
-        return withContext(Dispatchers.IO) {
+    suspend fun getUserProfileArtwork(context: Context): String? =
+        withContext(Dispatchers.IO) {
             try {
                 val authData = getAuthData(context)
                 val userProfile = UserProfileHelper(authData).getUserProfile()
@@ -82,67 +85,90 @@ object GPlayAPI {
                 null
             }
         }
-    }
 
-    private fun getNativeDeviceProperties(context: Context, isExport: Boolean = false): Properties {
-        val properties = Properties().apply {
-            setProperty("UserReadableName", "${Build.MANUFACTURER} ${Build.MODEL}")
-            setProperty("Build.HARDWARE", Build.HARDWARE)
-            setProperty("Build.RADIO", if (Build.getRadioVersion() != null) Build.getRadioVersion() else "unknown")
-            setProperty("Build.FINGERPRINT", Build.FINGERPRINT)
-            setProperty("Build.BRAND", Build.BRAND)
-            setProperty("Build.DEVICE", Build.DEVICE)
-            setProperty("Build.VERSION.SDK_INT", "${Build.VERSION.SDK_INT}")
-            setProperty("Build.VERSION.RELEASE", Build.VERSION.RELEASE)
-            setProperty("Build.MODEL", Build.MODEL)
-            setProperty("Build.MANUFACTURER", Build.MANUFACTURER)
-            setProperty("Build.PRODUCT", Build.PRODUCT)
-            setProperty("Build.ID", Build.ID)
-            setProperty("Build.BOOTLOADER", Build.BOOTLOADER)
-            val config = context.resources.configuration
-            setProperty("TouchScreen", "${config.touchscreen}")
-            setProperty("Keyboard", "${config.keyboard}")
-            setProperty("Navigation", "${config.navigation}")
-            setProperty("ScreenLayout", "${config.screenLayout and 15}")
-            setProperty("HasHardKeyboard", "${config.keyboard == Configuration.KEYBOARD_QWERTY}")
-            setProperty("HasFiveWayNavigation", "${config.navigation == Configuration.NAVIGATIONHIDDEN_YES}")
-            val metrics = context.resources.displayMetrics
-            setProperty("Screen.Density", "${metrics.densityDpi}")
-            setProperty("Screen.Width", "${metrics.widthPixels}")
-            setProperty("Screen.Height", "${metrics.heightPixels}")
-            setProperty("Platforms", Build.SUPPORTED_ABIS.joinToString(separator = ","))
-            setProperty("Features", context.packageManager.systemAvailableFeatures.mapNotNull { it.name }.joinToString(separator = ","))
-            setProperty("Locales", context.assets.locales.mapNotNull { it.replace("-", "_") }.joinToString(separator = ","))
-            setProperty("SharedLibraries", (context.packageManager.systemSharedLibraryNames?.toList() ?: emptyList()).joinToString(separator = ","))
-            val activityManager = context.getSystemService<ActivityManager>()
-            setProperty("GL.Version", activityManager!!.deviceConfigurationInfo.reqGlEsVersion.toString())
-            setProperty("GL.Extensions", eglExtensions.joinToString(separator = ","))
-            setProperty("Client", "android-google")
-            val gsfVersionProvider = getGsfAndVendingInfo(context, isExport)
-            setProperty("GSF.version", gsfVersionProvider["gsfVersionCode"].toString())
-            setProperty("Vending.version", gsfVersionProvider["vendingVersionCode"].toString())
-            setProperty("Vending.versionString", gsfVersionProvider["vendingVersionString"].toString())
-            setProperty("Roaming", "mobile-notroaming")
-            setProperty("TimeZone", "UTC-10")
-            setProperty("CellOperator", "310")
-            setProperty("SimOperator", "38")
-            if (Build.MANUFACTURER.lowercase(Locale.getDefault()).contains("huawei") || Build.HARDWARE.lowercase(
-                    Locale.getDefault()).contains("kirin") || Build.HARDWARE.lowercase(Locale.getDefault()).contains("hi3") && !isExport) {
-                setProperty("Build.HARDWARE", "lynx")
-                setProperty("Build.BOOTLOADER", "lynx-1.0-9716681")
-                setProperty("Build.BRAND", "google")
-                setProperty("Build.DEVICE", "lynx")
-                setProperty("Build.MODEL", "Pixel 7a")
-                setProperty("Build.MANUFACTURER", "Google")
-                setProperty("Build.PRODUCT", "lynx")
-                setProperty("Build.ID", "TQ2A.230505.002")
+    private fun getNativeDeviceProperties(
+        context: Context,
+        isExport: Boolean = false,
+    ): Properties {
+        val properties =
+            Properties().apply {
+                setProperty("UserReadableName", "${Build.MANUFACTURER} ${Build.MODEL}")
+                setProperty("Build.HARDWARE", Build.HARDWARE)
+                setProperty("Build.RADIO", if (Build.getRadioVersion() != null) Build.getRadioVersion() else "unknown")
+                setProperty("Build.FINGERPRINT", Build.FINGERPRINT)
+                setProperty("Build.BRAND", Build.BRAND)
+                setProperty("Build.DEVICE", Build.DEVICE)
+                setProperty("Build.VERSION.SDK_INT", "${Build.VERSION.SDK_INT}")
+                setProperty("Build.VERSION.RELEASE", Build.VERSION.RELEASE)
+                setProperty("Build.MODEL", Build.MODEL)
+                setProperty("Build.MANUFACTURER", Build.MANUFACTURER)
+                setProperty("Build.PRODUCT", Build.PRODUCT)
+                setProperty("Build.ID", Build.ID)
+                setProperty("Build.BOOTLOADER", Build.BOOTLOADER)
+                val config = context.resources.configuration
+                setProperty("TouchScreen", "${config.touchscreen}")
+                setProperty("Keyboard", "${config.keyboard}")
+                setProperty("Navigation", "${config.navigation}")
+                setProperty("ScreenLayout", "${config.screenLayout and 15}")
+                setProperty("HasHardKeyboard", "${config.keyboard == Configuration.KEYBOARD_QWERTY}")
+                setProperty("HasFiveWayNavigation", "${config.navigation == Configuration.NAVIGATIONHIDDEN_YES}")
+                val metrics = context.resources.displayMetrics
+                setProperty("Screen.Density", "${metrics.densityDpi}")
+                setProperty("Screen.Width", "${metrics.widthPixels}")
+                setProperty("Screen.Height", "${metrics.heightPixels}")
+                setProperty("Platforms", Build.SUPPORTED_ABIS.joinToString(separator = ","))
+                setProperty(
+                    "Features",
+                    context.packageManager.systemAvailableFeatures
+                        .mapNotNull { it.name }
+                        .joinToString(separator = ","),
+                )
+                setProperty(
+                    "Locales",
+                    context.assets.locales
+                        .mapNotNull { it.replace("-", "_") }
+                        .joinToString(separator = ","),
+                )
+                setProperty(
+                    "SharedLibraries",
+                    (context.packageManager.systemSharedLibraryNames?.toList() ?: emptyList()).joinToString(separator = ","),
+                )
+                val activityManager = context.getSystemService<ActivityManager>()
+                setProperty("GL.Version", activityManager!!.deviceConfigurationInfo.reqGlEsVersion.toString())
+                setProperty("GL.Extensions", eglExtensions.joinToString(separator = ","))
+                setProperty("Client", "android-google")
+                val gsfVersionProvider = getGsfAndVendingInfo(context, isExport)
+                setProperty("GSF.version", gsfVersionProvider["gsfVersionCode"].toString())
+                setProperty("Vending.version", gsfVersionProvider["vendingVersionCode"].toString())
+                setProperty("Vending.versionString", gsfVersionProvider["vendingVersionString"].toString())
+                setProperty("Roaming", "mobile-notroaming")
+                setProperty("TimeZone", "UTC-10")
+                setProperty("CellOperator", "310")
+                setProperty("SimOperator", "38")
+                if (Build.MANUFACTURER.lowercase(Locale.getDefault()).contains("huawei") ||
+                    Build.HARDWARE
+                        .lowercase(
+                            Locale.getDefault(),
+                        ).contains("kirin") || Build.HARDWARE.lowercase(Locale.getDefault()).contains("hi3") && !isExport
+                ) {
+                    setProperty("Build.HARDWARE", "lynx")
+                    setProperty("Build.BOOTLOADER", "lynx-1.0-9716681")
+                    setProperty("Build.BRAND", "google")
+                    setProperty("Build.DEVICE", "lynx")
+                    setProperty("Build.MODEL", "Pixel 7a")
+                    setProperty("Build.MANUFACTURER", "Google")
+                    setProperty("Build.PRODUCT", "lynx")
+                    setProperty("Build.ID", "TQ2A.230505.002")
+                }
             }
-        }
         return properties
     }
 
     @Throws(Exception::class)
-    private fun getGsfAndVendingInfo(context: Context, isExport: Boolean = false): Map<String, Any> {
+    private fun getGsfAndVendingInfo(
+        context: Context,
+        isExport: Boolean = false,
+    ): Map<String, Any> {
         val googleServicesPackageId = "com.google.android.gms"
         val googleVendingPackageId = "com.android.vending"
         val defaultGsfVersionCode = 203019037L
@@ -160,13 +186,14 @@ object GPlayAPI {
                     vendingVersionCode = PackageInfoCompat.getLongVersionCode(it)
                     vendingVersionString = it.versionName ?: vendingVersionString
                 }
-            } catch (_: PackageManager.NameNotFoundException) {}
+            } catch (_: PackageManager.NameNotFoundException) {
+            }
         }
 
         return mapOf(
             "gsfVersionCode" to gsfVersionCode,
             "vendingVersionCode" to vendingVersionCode,
-            "vendingVersionString" to vendingVersionString
+            "vendingVersionString" to vendingVersionString,
         )
     }
 
@@ -182,11 +209,14 @@ object GPlayAPI {
             if (egl.eglGetConfigs(display, null, 0, configCount)) {
                 val configs = arrayOfNulls<EGLConfig>(configCount[0])
                 if (egl.eglGetConfigs(display, configs, configCount[0], configCount)) {
-                    val pbufferAttribs = intArrayOf(
-                        EGL10.EGL_WIDTH, EGL10.EGL_PBUFFER_BIT,
-                        EGL10.EGL_HEIGHT, EGL10.EGL_PBUFFER_BIT,
-                        EGL10.EGL_NONE
-                    )
+                    val pbufferAttribs =
+                        intArrayOf(
+                            EGL10.EGL_WIDTH,
+                            EGL10.EGL_PBUFFER_BIT,
+                            EGL10.EGL_HEIGHT,
+                            EGL10.EGL_PBUFFER_BIT,
+                            EGL10.EGL_NONE,
+                        )
                     val contextAttributes = intArrayOf(12440, EGL10.EGL_PIXMAP_BIT, EGL10.EGL_NONE)
 
                     for (config in configs) {
@@ -197,7 +227,7 @@ object GPlayAPI {
                                 config,
                                 pbufferAttribs,
                                 null,
-                                extensions
+                                extensions,
                             )
                             addExtensions(
                                 egl,
@@ -205,7 +235,7 @@ object GPlayAPI {
                                 config,
                                 pbufferAttribs,
                                 contextAttributes,
-                                extensions
+                                extensions,
                             )
                         }
                     }
@@ -219,7 +249,11 @@ object GPlayAPI {
                 .sorted()
         }
 
-    private fun isConfigValid(egl: EGL10, display: EGLDisplay, config: EGLConfig?): Boolean {
+    private fun isConfigValid(
+        egl: EGL10,
+        display: EGLDisplay,
+        config: EGLConfig?,
+    ): Boolean {
         val configAttrib = IntArray(1)
         egl.eglGetConfigAttrib(display, config, EGL10.EGL_CONFIG_CAVEAT, configAttrib)
         if (configAttrib[0] == EGL10.EGL_SLOW_CONFIG) return false
@@ -237,15 +271,20 @@ object GPlayAPI {
         config: EGLConfig?,
         pbufferAttribs: IntArray,
         contextAttribs: IntArray?,
-        extensions: MutableSet<String>
+        extensions: MutableSet<String>,
     ) {
         val context = egl.eglCreateContext(display, config, EGL10.EGL_NO_CONTEXT, contextAttribs)
         if (context == EGL10.EGL_NO_CONTEXT) return
         val surface = egl.eglCreatePbufferSurface(display, config, pbufferAttribs)
-        if (surface == EGL10.EGL_NO_SURFACE) { egl.eglDestroyContext(display, context); return }
+        if (surface == EGL10.EGL_NO_SURFACE) {
+            egl.eglDestroyContext(display, context)
+            return
+        }
         egl.eglMakeCurrent(display, surface, surface, context)
         val extensionString = GLES10.glGetString(GLES10.GL_EXTENSIONS)
-        if (!TextUtils.isEmpty(extensionString)) { extensions.addAll(extensionString.split(" ")) }
+        if (!TextUtils.isEmpty(extensionString)) {
+            extensions.addAll(extensionString.split(" "))
+        }
         egl.eglMakeCurrent(display, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_CONTEXT)
         egl.eglDestroySurface(display, surface)
         egl.eglDestroyContext(display, context)

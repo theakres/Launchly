@@ -56,13 +56,12 @@ import com.akres.launchly.utils.VersionData
 import com.akres.launchly.utils.VersionType
 import com.akres.launchly.utils.VersionsViewModel
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VersionSelector(
     showDialog: Boolean,
     versionsViewModels: List<VersionsViewModel>,
-    onConfirmation: (version: VersionData?) -> Unit
+    onConfirmation: (version: VersionData?) -> Unit,
 ) {
     val archs = (Build.SUPPORTED_ABIS.map { Architecture.fromString(it).arch }).filter { it != "unknown" }
     var animateIn by remember { mutableStateOf(false) }
@@ -97,35 +96,38 @@ fun VersionSelector(
             onConfirmation(null)
             animateIn = false
         },
-        properties = DialogProperties(usePlatformDefaultWidth = !fullScreen)
+        properties = DialogProperties(usePlatformDefaultWidth = !fullScreen),
     ) {
         LaunchedEffect(Unit) {
             animateIn = true
         }
         AnimatedVisibility(
             visible = animateIn,
-            enter = fadeIn(spring(stiffness = Spring.StiffnessHigh)) + scaleIn(
-                initialScale = .8f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            ),
-            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f)
+            enter =
+                fadeIn(spring(stiffness = Spring.StiffnessHigh)) +
+                    scaleIn(
+                        initialScale = .8f,
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                    ),
+            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f),
         ) {
             Surface(
                 shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = AlertDialogDefaults.TonalElevation
+                tonalElevation = AlertDialogDefaults.TonalElevation,
             ) {
                 Column(modifier = Modifier.padding(vertical = 8.dp, horizontal = 24.dp)) {
                     Text(
                         "Select Minecraft Version",
                         style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(vertical = 16.dp)
+                        modifier = Modifier.padding(vertical = 16.dp),
                     )
                     Row(
                         Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         TextField(
                             value = searchQuery,
@@ -133,12 +135,12 @@ fun VersionSelector(
                             label = { Text("Search Version") },
                             singleLine = true,
                             modifier = Modifier.weight(1f),
-                            trailingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+                            trailingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                         )
                         if (!combineVersions) {
                             Row(
                                 Modifier.padding(start = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text("Beta")
                                 Checkbox(checked = type == VersionType.BETA, onCheckedChange = {
@@ -152,18 +154,22 @@ fun VersionSelector(
                             Tab(
                                 selected = index == selectedArch.ordinal,
                                 onClick = { selectedArch = Architecture.entries.toTypedArray()[index] },
-                                text = { Text(title) }
+                                text = { Text(title) },
                             )
                         }
                     }
                     Box(
                         Modifier.then(
-                            if (fullScreen) Modifier
-                                .fillMaxSize()
-                                .weight(1f) else Modifier.height(
-                                versionSelectorHeight.dp
-                            )
-                        )
+                            if (fullScreen) {
+                                Modifier
+                                    .fillMaxSize()
+                                    .weight(1f)
+                            } else {
+                                Modifier.height(
+                                    versionSelectorHeight.dp,
+                                )
+                            },
+                        ),
                     ) {
                         val viewModel = versionsViewModels[selectedArch.ordinal]
                         val versionData by viewModel.versionData.collectAsState()
@@ -171,21 +177,30 @@ fun VersionSelector(
                         val error by viewModel.error.collectAsState()
 
                         when {
-                            isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                            error != null -> Text("Error: $error", Modifier.align(Alignment.Center))
+                            isLoading -> {
+                                CircularProgressIndicator(Modifier.align(Alignment.Center))
+                            }
+
+                            error != null -> {
+                                Text("Error: $error", Modifier.align(Alignment.Center))
+                            }
+
                             else -> {
-                                val filteredVersions = versionData.filter {
-                                    (combineVersions || it.type == type) &&
-                                            (it.name.contains(
-                                                searchQuery,
-                                                ignoreCase = true
-                                            ) ||
-                                                    it.code.toString().contains(searchQuery))
-                                }
+                                val filteredVersions =
+                                    versionData.filter {
+                                        (combineVersions || it.type == type) &&
+                                            (
+                                                it.name.contains(
+                                                    searchQuery,
+                                                    ignoreCase = true,
+                                                ) ||
+                                                    it.code.toString().contains(searchQuery)
+                                            )
+                                    }
                                 LazyColumn {
                                     items(
                                         items = filteredVersions,
-                                        key = { it.code }
+                                        key = { it.code },
                                     ) { version ->
                                         VersionRow(
                                             version = version,
@@ -209,9 +224,10 @@ fun VersionSelector(
                             searchQuery = ""
                             animateIn = false
                         },
-                        modifier = Modifier
-                            .align(Alignment.End)
-                            .padding(top = 16.dp)
+                        modifier =
+                            Modifier
+                                .align(Alignment.End)
+                                .padding(top = 16.dp),
                     ) {
                         Text(selectedVersion?.name?.let { "Confirm ($it)" } ?: "Close")
                     }
@@ -232,30 +248,34 @@ fun VersionRow(
     selectedVersion: VersionData?,
     onClick: () -> Unit,
     showVersionCode: Boolean,
-    showVersionType: Boolean
+    showVersionType: Boolean,
 ) {
     Row(
         Modifier
             .fillMaxWidth()
             .padding(8.dp)
             .clickable(onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column {
             Text(version.name, style = MaterialTheme.typography.bodyLarge)
-            if (showVersionCode) Text(
-                "Version Code: ${version.code}",
-                style = MaterialTheme.typography.bodySmall
-            )
-            if (showVersionType) Text(
-                "Version Type: ${if (version.type == VersionType.BETA) "Beta" else "Release"}",
-                style = MaterialTheme.typography.bodySmall
-            )
+            if (showVersionCode) {
+                Text(
+                    "Version Code: ${version.code}",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (showVersionType) {
+                Text(
+                    "Version Type: ${if (version.type == VersionType.BETA) "Beta" else "Release"}",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
         Spacer(Modifier.weight(1f))
         RadioButton(
             selected = selectedVersion?.name == version.name,
-            onClick = onClick
+            onClick = onClick,
         )
     }
 }

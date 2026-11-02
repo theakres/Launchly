@@ -89,7 +89,6 @@ import androidx.wear.compose.material.FractionalThreshold
 import androidx.wear.compose.material.SwipeableState
 import androidx.wear.compose.material.rememberSwipeableState
 import androidx.wear.compose.material.swipeable
-import com.dzeio.crashhandler.CrashHandler
 import com.akres.launchly.broadcast_receivers.PackageStatusReceiver
 import com.akres.launchly.screens.ConfirmationDialog
 import com.akres.launchly.screens.Onboarding
@@ -121,6 +120,7 @@ import com.akres.launchly.utils.getVersionTypeByCode
 import com.akres.launchly.utils.installPackage
 import com.akres.launchly.utils.saveIconToFile
 import com.akres.launchly.utils.uninstallApp
+import com.dzeio.crashhandler.CrashHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -135,8 +135,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        CrashHandler.Builder()
-            .withContext(this).build().setup()
+        CrashHandler
+            .Builder()
+            .withContext(this)
+            .build()
+            .setup()
         filesDir.walk().forEach {
             if (it.isFile && it.name.endsWith(".temp")) {
                 it.delete()
@@ -151,7 +154,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 NavHost(
                     navController = navController,
-                    startDestination = if (onboardingComplete) "main" else "onboarding"
+                    startDestination = if (onboardingComplete) "main" else "onboarding",
                 ) {
                     composable("onboarding") {
                         if (!onboardingComplete) {
@@ -167,7 +170,9 @@ class MainActivity : ComponentActivity() {
                             }
                             Onboarding(
                                 onFinish = {
-                                    sharedPreferences.edit().putBoolean("onboarding_complete", true)
+                                    sharedPreferences
+                                        .edit()
+                                        .putBoolean("onboarding_complete", true)
                                         .apply()
                                     sharedPreferences.edit().putBoolean("first_run", false).apply()
                                     navController.navigate("main") {
@@ -220,7 +225,7 @@ fun Main(navHostController: NavHostController) {
             ExtendedFloatingActionButton(
                 { Text("Add Version") },
                 { Icon(Icons.Default.Add, "Add") },
-                { showVersionSelector.value = true }
+                { showVersionSelector.value = true },
             )
         },
         topBar = {
@@ -230,9 +235,9 @@ fun Main(navHostController: NavHostController) {
                     IconButton(onClick = {
                         showSettings.value = true
                     }) { Icon(Icons.Default.Settings, "Settings") }
-                }
+                },
             )
-        }
+        },
     ) { innerPadding ->
         var isRefreshing by remember { mutableStateOf(false) }
         val coroutineScope = rememberCoroutineScope()
@@ -259,7 +264,7 @@ fun Main(navHostController: NavHostController) {
                 if (fileToDelete.exists()) fileToDelete.deleteRecursively()
                 downloadedVersions.remove(downloadedVersions.find { version -> version.installationId == it })
             },
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
         )
 
         VersionSelector(
@@ -268,22 +273,23 @@ fun Main(navHostController: NavHostController) {
             onConfirmation = { version ->
                 showVersionSelector.value = false
                 if (version != null) {
-                    savedVersionData = SavedVersionData(
-                        UUID.randomUUID().toString(),
-                        "Minecraft ${version.name}",
-                        version.code.toString(),
-                        version.name,
-                        version.type,
-                        version.architecture,
-                        Status.NOT_DOWNLOADED,
-                        listOf(),
-                        false,
-                        System.currentTimeMillis()
-                    )
+                    savedVersionData =
+                        SavedVersionData(
+                            UUID.randomUUID().toString(),
+                            "Minecraft ${version.name}",
+                            version.code.toString(),
+                            version.name,
+                            version.type,
+                            version.architecture,
+                            Status.NOT_DOWNLOADED,
+                            listOf(),
+                            false,
+                            System.currentTimeMillis(),
+                        )
                     optionMode = OptionMode.ADD
                     showOptions.value = true
                 }
-            }
+            },
         )
         if (savedVersionData != null) {
             VersionOptions(
@@ -299,7 +305,7 @@ fun Main(navHostController: NavHostController) {
                             updateInfo(context, version, versionDbViewModel)
                         }
                     }
-                }
+                },
             )
         }
 
@@ -307,20 +313,19 @@ fun Main(navHostController: NavHostController) {
             showDialog = showSettings.value,
             navHostController = navHostController,
             userProfileInfo = userProfileInfo,
-            onDismissRequest = { showSettings.value = false }
+            onDismissRequest = { showSettings.value = false },
         )
     }
 }
 
-private fun loadExternalApps(
-    context: Context
-): List<Pair<SavedVersionData, String>> {
+private fun loadExternalApps(context: Context): List<Pair<SavedVersionData, String>> {
     val packageManager = context.packageManager
     val externalApps = mutableListOf<Pair<SavedVersionData, String>>()
     val versionsViewModels = Build.SUPPORTED_ABIS.map { VersionsViewModel(it) }
-    val appPackages = listOf(
-        "com.mojang.minecraftpe" to VersionType.UNKNOWN
-    )
+    val appPackages =
+        listOf(
+            "com.mojang.minecraftpe" to VersionType.UNKNOWN,
+        )
 
     for ((packageName, versionType) in appPackages) {
         try {
@@ -328,27 +333,34 @@ private fun loadExternalApps(
             if (getPackageInstallSource(context, packageName) == context.packageName) continue
             val versionCode = packageInfo.let { PackageInfoCompat.getLongVersionCode(it) }
             val packageAppName = packageInfo.applicationInfo?.loadLabel(packageManager).toString()
-            saveIconToFile(packageInfo.applicationInfo?.loadIcon(packageManager)!!, File("${context.filesDir}/versions/$packageAppName/default_icon.png"))
-            val appData = SavedVersionData(
-                name = packageAppName,
-                installationId = packageInfo.applicationInfo?.loadLabel(packageManager).toString(),
-                versionCode = versionCode.toString(),
-                versionName = packageInfo.versionName ?: "Unknown",
-                versionType = versionType.takeIf { it != VersionType.UNKNOWN }
-                    ?: getVersionTypeByCode(versionCode, versionsViewModels),
-                architecture = getPackageArch(packageInfo),
-                status = Status.INSTALLED,
-                patches = emptyList(),
-                customIcon = false,
-                dateModified = System.currentTimeMillis()
+            saveIconToFile(
+                packageInfo.applicationInfo?.loadIcon(packageManager)!!,
+                File("${context.filesDir}/versions/$packageAppName/default_icon.png"),
             )
+            val appData =
+                SavedVersionData(
+                    name = packageAppName,
+                    installationId = packageInfo.applicationInfo?.loadLabel(packageManager).toString(),
+                    versionCode = versionCode.toString(),
+                    versionName = packageInfo.versionName ?: "Unknown",
+                    versionType =
+                        versionType.takeIf { it != VersionType.UNKNOWN }
+                            ?: getVersionTypeByCode(versionCode, versionsViewModels),
+                    architecture = getPackageArch(packageInfo),
+                    status = Status.INSTALLED,
+                    patches = emptyList(),
+                    customIcon = false,
+                    dateModified = System.currentTimeMillis(),
+                )
             externalApps.add(Pair(appData, packageName))
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+        }
     }
     return externalApps
 }
 
 private val client = OkHttpClient()
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadedVersions(
@@ -357,7 +369,7 @@ fun DownloadedVersions(
     onRefresh: () -> Unit,
     onEditVersion: (String) -> Unit,
     onRemoveVersion: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val versionDbViewModel: VersionDatabaseViewModel = viewModel()
     val context = LocalContext.current
@@ -365,7 +377,9 @@ fun DownloadedVersions(
     val isUpdating = remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         externalApps.addAll(loadExternalApps(context))
-        try { getPackageInfo(context, "com.mojang.minecraftpe") } catch (_: Exception) {
+        try {
+            getPackageInfo(context, "com.mojang.minecraftpe")
+        } catch (_: Exception) {
             items.forEach {
                 if (it.status == Status.INSTALLED) {
                     updateInfo(context, it.copy(status = Status.NOT_INSTALLED))
@@ -375,27 +389,29 @@ fun DownloadedVersions(
         }
     }
 
-    val packageStateReceiver = remember {
-        PackageStatusReceiver { packageName, status ->
-            externalApps.clear()
-            externalApps.addAll(loadExternalApps(context))
-            if (packageName == "com.mojang.minecraftpe" && status == "removed" && !isUpdating.value) {
-                items.forEach {
-                    if (it.status == Status.INSTALLED) {
-                        updateInfo(context, it.copy(status = Status.NOT_INSTALLED))
+    val packageStateReceiver =
+        remember {
+            PackageStatusReceiver { packageName, status ->
+                externalApps.clear()
+                externalApps.addAll(loadExternalApps(context))
+                if (packageName == "com.mojang.minecraftpe" && status == "removed" && !isUpdating.value) {
+                    items.forEach {
+                        if (it.status == Status.INSTALLED) {
+                            updateInfo(context, it.copy(status = Status.NOT_INSTALLED))
+                        }
                     }
+                    versionDbViewModel.loadSavedVersions(context)
                 }
-                versionDbViewModel.loadSavedVersions(context)
             }
         }
-    }
 
-    DisposableEffect (Unit) {
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_PACKAGE_REMOVED)
-            addAction(Intent.ACTION_PACKAGE_ADDED)
-            addDataScheme("package")
-        }
+    DisposableEffect(Unit) {
+        val filter =
+            IntentFilter().apply {
+                addAction(Intent.ACTION_PACKAGE_REMOVED)
+                addAction(Intent.ACTION_PACKAGE_ADDED)
+                addDataScheme("package")
+            }
         context.registerReceiver(packageStateReceiver, filter)
         onDispose {
             context.unregisterReceiver(packageStateReceiver)
@@ -405,7 +421,7 @@ fun DownloadedVersions(
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
-        modifier = modifier
+        modifier = modifier,
     ) {
         LazyColumn(Modifier.fillMaxSize()) {
             if (externalApps.isNotEmpty()) {
@@ -422,7 +438,7 @@ fun DownloadedVersions(
                         context.startActivity(intent)
                     },
                     isLaunchly = false,
-                    packageName = app.second
+                    packageName = app.second,
                 )
             }
             if (items.isNotEmpty()) {
@@ -442,7 +458,7 @@ fun DownloadedVersions(
                     updateInfo(
                         context,
                         it.copy(status = status),
-                        versionDbViewModel
+                        versionDbViewModel,
                     )
                 }
             }
@@ -454,7 +470,7 @@ private fun updateInfo(
     context: Context,
     savedVersionData: SavedVersionData,
     versionDbViewModel: VersionDatabaseViewModel = VersionDatabaseViewModel(),
-    downloadedVersions: SnapshotStateList<SavedVersionData> = versionDbViewModel.downloadedVersions
+    downloadedVersions: SnapshotStateList<SavedVersionData> = versionDbViewModel.downloadedVersions,
 ) {
     VersionDatabaseHelper(context).editVersion(savedVersionData)
     val index = versionDbViewModel.getIndexById(savedVersionData.installationId)
@@ -471,8 +487,8 @@ fun VersionItem(
     isLaunchly: Boolean = true,
     packageName: String = "com.mojang.minecraftpe",
     isUpdating: MutableState<Boolean> = mutableStateOf(false),
-    updateStatus: (Status) -> Unit = {}
-    ) {
+    updateStatus: (Status) -> Unit = {},
+) {
     val context = LocalContext.current
     val downloader = remember(savedVersionData.installationId) { Downloader(client) }
     val scope = rememberCoroutineScope()
@@ -492,7 +508,7 @@ fun VersionItem(
                 isRemoving.value = false
                 onRemoveVersion(savedVersionData.installationId)
             }
-        }
+        },
     )
 
     ConfirmationDialog(
@@ -506,9 +522,8 @@ fun VersionItem(
         onDismiss = {
             attemptRemove.value = false
         },
-        confirmText = "Remove"
+        confirmText = "Remove",
     )
-
 
     VersionItemLayout(
         savedVersionData = savedVersionData,
@@ -542,11 +557,11 @@ fun VersionItem(
                         packageName,
                         isUpdating,
                         scope,
-                        updateStatus
+                        updateStatus,
                     )
                 }
             }
-        }
+        },
     )
 }
 
@@ -566,7 +581,7 @@ fun VersionItemLayout(
     isLoading: Boolean,
     installProgress: Int,
     packageName: String,
-    onVersionAction: (VersionAction) -> Unit
+    onVersionAction: (VersionAction) -> Unit,
 ) {
     val layoutMaxWidth = remember { mutableStateOf(0.dp) }
     BoxWithConstraints { layoutMaxWidth.value = maxWidth }
@@ -577,53 +592,62 @@ fun VersionItemLayout(
     val height = 120.dp
     val isInstalled = savedVersionData.status == Status.INSTALLED
     val isDownloading = savedVersionData.status == Status.DOWNLOADING
-    val progress = if (isDownloading) downloadProgress / 100f else if (installProgress > -1) installProgress / 100f else 1f
-    val density : Density = LocalDensity.current
-    val animatedProgress = animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(
-            durationMillis = 1000,
-            easing = LinearOutSlowInEasing
-        ),
-        label = "progress"
-    )
+    val progress =
+        if (isDownloading) {
+            downloadProgress / 100f
+        } else if (installProgress > -1) {
+            installProgress / 100f
+        } else {
+            1f
+        }
+    val density: Density = LocalDensity.current
+    val animatedProgress =
+        animateFloatAsState(
+            targetValue = progress,
+            animationSpec =
+                tween(
+                    durationMillis = 1000,
+                    easing = LinearOutSlowInEasing,
+                ),
+            label = "progress",
+        )
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(height * if (isRemoving) animatedAlpha else 1f)
-            .alpha(if (isRemoving) animatedAlpha else 1f)
-            .swipeable(
-                state = swipeableState,
-                anchors = mapOf(0f to 0, -maxWidth.toFloat() to 1),
-                thresholds = { _, _ -> FractionalThreshold(0.3f) },
-                orientation = Orientation.Horizontal
-            )
-            .padding(8.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(height * if (isRemoving) animatedAlpha else 1f)
+                .alpha(if (isRemoving) animatedAlpha else 1f)
+                .swipeable(
+                    state = swipeableState,
+                    anchors = mapOf(0f to 0, -maxWidth.toFloat() to 1),
+                    thresholds = { _, _ -> FractionalThreshold(0.3f) },
+                    orientation = Orientation.Horizontal,
+                ).padding(8.dp),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(with(density) { maxWidth.toDp() - 10.dp })
-                .align(Alignment.CenterEnd)
-                .offset {
-                    val offsetX = (swipeableState.offset.value + maxWidth) * 1.5
-                    IntOffset(offsetX.roundToInt(), 0)
-                }
-                .clip(MaterialTheme.shapes.medium),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .width(with(density) { maxWidth.toDp() - 10.dp })
+                    .align(Alignment.CenterEnd)
+                    .offset {
+                        val offsetX = (swipeableState.offset.value + maxWidth) * 1.5
+                        IntOffset(offsetX.roundToInt(), 0)
+                    }.clip(MaterialTheme.shapes.medium),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val actionModifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
+            val actionModifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
             if (isLaunchly) {
-                ActionButton(actionModifier, Icons.Default.Edit, Color.Gray,{
+                ActionButton(actionModifier, Icons.Default.Edit, Color.Gray, {
                     scope.launch {
                         swipeableState.animateTo(0)
                         onEditVersion(savedVersionData.installationId)
                     }
                 })
-
             }
             ActionButton(actionModifier, if (isInstalled) Icons.Default.Delete else Icons.Default.Close, Color.Red, {
                 scope.launch {
@@ -643,34 +667,47 @@ fun VersionItemLayout(
                 .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.surfaceContainerLow),
             MaterialTheme.colorScheme.surfaceContainerHigh,
-            animatedProgress.value
+            animatedProgress.value,
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                val iconFile = File("${context.filesDir}/versions/${savedVersionData.installationId}/${
-                    if (savedVersionData.customIcon) "custom_icon" else "default_icon"
-                }.png")
+                val iconFile =
+                    File(
+                        "${context.filesDir}/versions/${savedVersionData.installationId}/${
+                            if (savedVersionData.customIcon) "custom_icon" else "default_icon"
+                        }.png",
+                    )
 
                 Image(
-                    bitmap = if (iconFile.exists()) BitmapFactory.decodeFile(iconFile.absolutePath)
-                        .asImageBitmap() else BitmapFactory.decodeStream(context.assets.open("default_icon.png"))
-                        .asImageBitmap(),
+                    bitmap =
+                        if (iconFile.exists()) {
+                            BitmapFactory
+                                .decodeFile(iconFile.absolutePath)
+                                .asImageBitmap()
+                        } else {
+                            BitmapFactory
+                                .decodeStream(context.assets.open("default_icon.png"))
+                                .asImageBitmap()
+                        },
                     contentDescription = "Version Icon",
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(Color.Gray)
+                    modifier =
+                        Modifier
+                            .aspectRatio(1f)
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(Color.Gray),
                 )
 
                 Column(
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                        .fillMaxHeight()
-                        .weight(1f)
+                    modifier =
+                        Modifier
+                            .padding(start = 8.dp)
+                            .fillMaxHeight()
+                            .weight(1f),
                 ) {
                     Text(savedVersionData.name, style = MaterialTheme.typography.titleLarge)
                     Info("Version: ${savedVersionData.versionName}, Code: ${savedVersionData.versionCode}")
@@ -679,11 +716,11 @@ fun VersionItemLayout(
                     if (isDownloading) {
                         Info(
                             "Downloading... " +
-                            if (isPaused) {
-                                "(Paused)"
-                            } else {
-                                "${f(downloadProgress)}% at ${f(downloadSpeed)} MB/s, ETA: ${f(downloadEta)}s"
-                            }
+                                if (isPaused) {
+                                    "(Paused)"
+                                } else {
+                                    "${f(downloadProgress)}% at ${f(downloadSpeed)} MB/s, ETA: ${f(downloadEta)}s"
+                                },
                         )
                     }
                     if (installProgress > -1) Info("Installing... $installProgress%")
@@ -701,13 +738,12 @@ fun VersionItemLayout(
                     context,
                     packageName,
                     onVersionAction,
-                    isPaused
+                    isPaused,
                 )
             }
         }
     }
 }
-
 
 @Composable
 @OptIn(ExperimentalWearMaterialApi::class)
@@ -720,7 +756,7 @@ private fun GetActionButton(
     context: Context,
     packageName: String,
     onVersionAction: (VersionAction) -> Unit,
-    isPaused: Boolean
+    isPaused: Boolean,
 ) {
     when (savedVersionData.status) {
         Status.INSTALLED -> {
@@ -733,10 +769,10 @@ private fun GetActionButton(
                     scope.launch { swipeableState.animateTo(0) }
                     context.startActivity(
                         context.packageManager.getLaunchIntentForPackage(
-                            packageName
-                        )
+                            packageName,
+                        ),
                     )
-                }
+                },
             )
         }
 
@@ -749,7 +785,7 @@ private fun GetActionButton(
                 onClick = {
                     scope.launch { swipeableState.animateTo(0) }
                     onVersionAction(VersionAction.Install)
-                }
+                },
             )
         }
 
@@ -764,7 +800,7 @@ private fun GetActionButton(
                         swipeableState.animateTo(0)
                         onVersionAction(VersionAction.StartDownload)
                     }
-                }
+                },
             )
         }
 
@@ -780,17 +816,19 @@ private fun GetActionButton(
                         swipeableState.animateTo(0)
                         expanded.value = true
                     }
-                }
+                },
             ) {
                 DropDown(
-                    menu = listOf(
-                        if (isPaused)
-                            "Resume" to { onVersionAction(VersionAction.ResumeDownload) }
-                        else
-                            "Pause" to { onVersionAction(VersionAction.PauseDownload) },
-                        "Cancel" to { onVersionAction(VersionAction.CancelDownload) }
-                    ),
-                    expanded = expanded
+                    menu =
+                        listOf(
+                            if (isPaused) {
+                                "Resume" to { onVersionAction(VersionAction.ResumeDownload) }
+                            } else {
+                                "Pause" to { onVersionAction(VersionAction.PauseDownload) }
+                            },
+                            "Cancel" to { onVersionAction(VersionAction.CancelDownload) },
+                        ),
+                    expanded = expanded,
                 )
             }
         }
@@ -812,7 +850,7 @@ suspend fun handleVersionAction(
     packageName: String,
     isUpdating: MutableState<Boolean>,
     coroutineScope: CoroutineScope,
-    updateStatus: (Status) -> Unit
+    updateStatus: (Status) -> Unit,
 ) {
     when (action) {
         is VersionAction.StartDownload -> {
@@ -826,7 +864,7 @@ suspend fun handleVersionAction(
                 updateStatus(Status.DOWNLOADING)
                 downloader.startDownload(
                     urlToFileNameMap,
-                    File("${context.filesDir}/versions/${savedVersionData.installationId}")
+                    File("${context.filesDir}/versions/${savedVersionData.installationId}"),
                 ) { status ->
                     when (status) {
                         is Downloader.DownloadStatus.OnProgress -> {
@@ -858,39 +896,50 @@ suspend fun handleVersionAction(
             } catch (e: Exception) {
                 Toast.makeText(context, "This account didn't buy Minecraft, is this the right Account?", Toast.LENGTH_SHORT).show()
             }
-
         }
+
         is VersionAction.CancelDownload -> {
             downloader.cancelAll()
             isPaused.value = false
         }
+
         is VersionAction.PauseDownload -> {
             downloader.pauseAll()
             isPaused.value = true
         }
+
         is VersionAction.ResumeDownload -> {
             downloader.resumeAll()
             isPaused.value = false
         }
+
         is VersionAction.Install -> {
             println("Installing ${savedVersionData.name}")
             isLoading.value = true
-            val apks = File("${context.filesDir}/versions/${savedVersionData.installationId}/").listFiles { file -> file.isFile && file.name.endsWith(".apk") }
+            val apks =
+                File("${context.filesDir}/versions/${savedVersionData.installationId}/").listFiles { file ->
+                    file.isFile &&
+                        file.name.endsWith(".apk")
+                }
             if (apks != null && apks.isNotEmpty()) {
                 val onResult: (SessionResult) -> Unit = {
                     when (it) {
                         is SessionResult.OnProgress -> {
                             installProgress.intValue = it.progress
                         }
+
                         is SessionResult.OnSuccess -> {
-                            val iconFile = File("${context.filesDir}/versions/${savedVersionData.installationId}/${
-                                if (savedVersionData.customIcon) "custom_icon" else "default_icon"
-                            }.png")
+                            val iconFile =
+                                File(
+                                    "${context.filesDir}/versions/${savedVersionData.installationId}/${
+                                        if (savedVersionData.customIcon) "custom_icon" else "default_icon"
+                                    }.png",
+                                )
                             installProgress.intValue = -1
                             if (!savedVersionData.customIcon) {
                                 saveIconToFile(
                                     context.packageManager.getApplicationIcon(packageName),
-                                    iconFile
+                                    iconFile,
                                 )
                             }
                             isLoading.value = false
@@ -901,12 +950,14 @@ suspend fun handleVersionAction(
                                 isUpdating.value = false
                             }
                         }
+
                         is SessionResult.OnFailure -> {
                             installProgress.intValue = -1
                             isLoading.value = false
                             isUpdating.value = false
                             println("Failed to install: ${it.message}")
                         }
+
                         is SessionResult.OnCancel -> {
                             installProgress.intValue = -1
                             isLoading.value = false
@@ -929,9 +980,12 @@ suspend fun handleVersionAction(
                         isUpdating.value = true
                         installPackage(context, apks, onResult)
                     }
-                } catch (e: Exception) { installPackage(context, apks, onResult) }
+                } catch (e: Exception) {
+                    installPackage(context, apks, onResult)
+                }
             }
         }
+
         is VersionAction.Remove -> {
             if (savedVersionData.status == Status.INSTALLED) {
                 println("Uninstalling $packageName")
@@ -943,10 +997,12 @@ suspend fun handleVersionAction(
                             isLoading.value = false
                             updateStatus(Status.NOT_INSTALLED)
                         }
+
                         is SessionResult.OnFailure -> {
                             println("Failed to uninstall $packageName: ${status.message}")
                             isLoading.value = false
                         }
+
                         else -> { }
                     }
                 }
@@ -960,9 +1016,14 @@ suspend fun handleVersionAction(
 
 sealed class VersionAction {
     data object StartDownload : VersionAction()
+
     data object CancelDownload : VersionAction()
+
     data object PauseDownload : VersionAction()
+
     data object ResumeDownload : VersionAction()
+
     data object Install : VersionAction()
+
     data object Remove : VersionAction()
 }

@@ -6,21 +6,28 @@ import android.graphics.Paint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 
-fun scaleBitmap(bitmap: Bitmap, targetDimension: Int): Bitmap {
+fun scaleBitmap(
+    bitmap: Bitmap,
+    targetDimension: Int,
+): Bitmap {
     val width = bitmap.width
     val height = bitmap.height
 
-    val scaleFactor = maxOf(
-        targetDimension.toFloat() / width,
-        targetDimension.toFloat() / height
-    )
+    val scaleFactor =
+        maxOf(
+            targetDimension.toFloat() / width,
+            targetDimension.toFloat() / height,
+        )
     val newWidth = (width * scaleFactor).toInt()
     val newHeight = (height * scaleFactor).toInt()
 
     return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
 }
 
-fun squareBitmap(bitmap: Bitmap, backgroundColor: Int = Color.Transparent.toArgb()): Bitmap {
+fun squareBitmap(
+    bitmap: Bitmap,
+    backgroundColor: Int = Color.Transparent.toArgb(),
+): Bitmap {
     val width = bitmap.width
     val height = bitmap.height
 

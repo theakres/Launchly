@@ -9,18 +9,17 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
 import java.io.Serializable
 
-class VersionDatabaseViewModel: ViewModel() {
+class VersionDatabaseViewModel : ViewModel() {
     private val _downloadedVersions = mutableStateListOf<SavedVersionData>()
     val downloadedVersions: SnapshotStateList<SavedVersionData> get() = _downloadedVersions
+
     fun loadSavedVersions(context: Context) {
         val versionDbHelper = VersionDatabaseHelper(context)
         _downloadedVersions.clear()
         _downloadedVersions.addAll(versionDbHelper.getSavedVersions())
     }
 
-    fun getIndexById(id: String): Int {
-        return downloadedVersions.indexOfFirst { it.installationId == id }
-    }
+    fun getIndexById(id: String): Int = downloadedVersions.indexOfFirst { it.installationId == id }
 }
 
 data class SavedVersionData(
@@ -33,40 +32,41 @@ data class SavedVersionData(
     val status: Status,
     val patches: List<String>,
     val customIcon: Boolean,
-    val dateModified: Long
+    val dateModified: Long,
 ) : Serializable
 
-enum class Architecture(val arch: String) {
+enum class Architecture(
+    val arch: String,
+) {
     ARM64("arm64-v8a"),
     ARM("armeabi-v7a"),
     X86("x86"),
     X86_64("x86_64"),
-    UNKNOWN("unknown");
+    UNKNOWN("unknown"),
+    ;
+
     companion object {
-        fun fromString(arch: String): Architecture {
-            return entries.firstOrNull { it.arch == arch } ?: UNKNOWN
-        }
+        fun fromString(arch: String): Architecture = entries.firstOrNull { it.arch == arch } ?: UNKNOWN
     }
 }
-
 
 enum class VersionType {
     RELEASE,
     BETA,
     PREMIUM,
-    UNKNOWN
+    UNKNOWN,
 }
 
 enum class Status {
     INSTALLED,
     DOWNLOADING,
     NOT_INSTALLED,
-    NOT_DOWNLOADED
+    NOT_DOWNLOADED,
 }
 
-class VersionDatabaseHelper(context: Context) :
-    SQLiteOpenHelper(context, "version.db", null, 1) {
-
+class VersionDatabaseHelper(
+    context: Context,
+) : SQLiteOpenHelper(context, "version.db", null, 1) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             """
@@ -82,29 +82,34 @@ class VersionDatabaseHelper(context: Context) :
                 customIcon INTEGER,
                 dateModified INTEGER
             )
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+    override fun onUpgrade(
+        db: SQLiteDatabase,
+        oldVersion: Int,
+        newVersion: Int,
+    ) {
         db.execSQL("DROP TABLE IF EXISTS versions")
         onCreate(db)
     }
 
     fun addVersion(savedVersionData: SavedVersionData) {
         writableDatabase.use { db ->
-            val values = ContentValues().apply {
-                put("id", savedVersionData.installationId)
-                put("name", savedVersionData.name)
-                put("versionCode", savedVersionData.versionCode)
-                put("versionName", savedVersionData.versionName)
-                put("versionType", savedVersionData.versionType.name)
-                put("architecture", savedVersionData.architecture.name)
-                put("status", savedVersionData.status.name)
-                put("patches", savedVersionData.patches.joinToString(","))
-                put("customIcon", savedVersionData.customIcon)
-                put("dateModified", savedVersionData.dateModified)
-            }
+            val values =
+                ContentValues().apply {
+                    put("id", savedVersionData.installationId)
+                    put("name", savedVersionData.name)
+                    put("versionCode", savedVersionData.versionCode)
+                    put("versionName", savedVersionData.versionName)
+                    put("versionType", savedVersionData.versionType.name)
+                    put("architecture", savedVersionData.architecture.name)
+                    put("status", savedVersionData.status.name)
+                    put("patches", savedVersionData.patches.joinToString(","))
+                    put("customIcon", savedVersionData.customIcon)
+                    put("dateModified", savedVersionData.dateModified)
+                }
             db.insertWithOnConflict("versions", null, values, SQLiteDatabase.CONFLICT_REPLACE)
         }
     }
@@ -129,11 +134,13 @@ class VersionDatabaseHelper(context: Context) :
                             versionType = VersionType.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("versionType"))),
                             architecture = Architecture.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("architecture"))),
                             status = Status.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("status"))),
-                            patches = cursor.getString(cursor.getColumnIndexOrThrow("patches"))
-                                .split(","),
+                            patches =
+                                cursor
+                                    .getString(cursor.getColumnIndexOrThrow("patches"))
+                                    .split(","),
                             customIcon = cursor.getInt(cursor.getColumnIndexOrThrow("customIcon")) == 1,
-                            dateModified = cursor.getLong(cursor.getColumnIndexOrThrow("dateModified"))
-                        )
+                            dateModified = cursor.getLong(cursor.getColumnIndexOrThrow("dateModified")),
+                        ),
                     )
                 }
             }
@@ -143,17 +150,18 @@ class VersionDatabaseHelper(context: Context) :
 
     fun editVersion(savedVersionData: SavedVersionData) {
         writableDatabase.use { db ->
-            val values = ContentValues().apply {
-                put("name", savedVersionData.name)
-                put("versionCode", savedVersionData.versionCode)
-                put("versionName", savedVersionData.versionName)
-                put("versionType", savedVersionData.versionType.name)
-                put("architecture", savedVersionData.architecture.name)
-                put("status", savedVersionData.status.name)
-                put("patches", savedVersionData.patches.joinToString(","))
-                put("customIcon", savedVersionData.customIcon)
-                put("dateModified", savedVersionData.dateModified)
-            }
+            val values =
+                ContentValues().apply {
+                    put("name", savedVersionData.name)
+                    put("versionCode", savedVersionData.versionCode)
+                    put("versionName", savedVersionData.versionName)
+                    put("versionType", savedVersionData.versionType.name)
+                    put("architecture", savedVersionData.architecture.name)
+                    put("status", savedVersionData.status.name)
+                    put("patches", savedVersionData.patches.joinToString(","))
+                    put("customIcon", savedVersionData.customIcon)
+                    put("dateModified", savedVersionData.dateModified)
+                }
             db.update("versions", values, "id = ?", arrayOf(savedVersionData.installationId))
         }
     }

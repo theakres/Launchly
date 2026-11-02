@@ -50,10 +50,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppSettingsDialog(showDialog: Boolean, onDismissRequest: () -> Unit) {
+fun AppSettingsDialog(
+    showDialog: Boolean,
+    onDismissRequest: () -> Unit,
+) {
     var animateIn by remember { mutableStateOf(false) }
     var showAnimatedDialog by remember { mutableStateOf(false) }
 
@@ -70,7 +72,6 @@ fun AppSettingsDialog(showDialog: Boolean, onDismissRequest: () -> Unit) {
     val showVersionType = remember { mutableStateOf(versionListPrefs.getBoolean("show_version_type", false)) }
     val showDividers = remember { mutableStateOf(versionListPrefs.getBoolean("show_dividers", true)) }
     val combineVersions = remember { mutableStateOf(versionListPrefs.getBoolean("combine_versions", false)) }
-
 
     val showInputDialog = remember { mutableStateOf(false) }
     val inputDialogTitle = remember { mutableStateOf("") }
@@ -89,34 +90,42 @@ fun AppSettingsDialog(showDialog: Boolean, onDismissRequest: () -> Unit) {
         onDismissRequest = {
             animateIn = false
             onDismissRequest()
-        }
+        },
     ) {
         LaunchedEffect(Unit) {
             animateIn = true
         }
         AnimatedVisibility(
             visible = animateIn,
-            enter = fadeIn(spring(stiffness = Spring.StiffnessHigh)) + scaleIn(
-                initialScale = .8f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            ),
-            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f)
+            enter =
+                fadeIn(spring(stiffness = Spring.StiffnessHigh)) +
+                    scaleIn(
+                        initialScale = .8f,
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                    ),
+            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f),
         ) {
             Surface(
                 shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = AlertDialogDefaults.TonalElevation
+                tonalElevation = AlertDialogDefaults.TonalElevation,
             ) {
                 Column(modifier = Modifier.padding(vertical = 24.dp, horizontal = 0.dp)) {
                     Text("Settings", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(24.dp, 0.dp))
                     Spacer(Modifier.height(16.dp))
                     Box(
-                        Modifier.fillMaxHeight(.7f)
+                        Modifier.fillMaxHeight(.7f),
                     ) {
-                        Column( Modifier.verticalScroll(rememberScrollState())) {
-                            Text("User Interface", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(24.dp, 0.dp))
+                        Column(Modifier.verticalScroll(rememberScrollState())) {
+                            Text(
+                                "User Interface",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(24.dp, 0.dp),
+                            )
                             Option(
                                 title = "Theme",
                                 description = if (isDarkTheme.value) "Dark" else "Light",
@@ -124,7 +133,7 @@ fun AppSettingsDialog(showDialog: Boolean, onDismissRequest: () -> Unit) {
                                 onCheckedChange = {
                                     isDarkTheme.value = it
                                     uiPrefs.edit().putBoolean("dark_theme", it).apply()
-                                }
+                                },
                             )
                             Option(
                                 title = "Dynamic Color",
@@ -133,7 +142,7 @@ fun AppSettingsDialog(showDialog: Boolean, onDismissRequest: () -> Unit) {
                                 onCheckedChange = {
                                     isDynamicColor.value = it
                                     uiPrefs.edit().putBoolean("dynamic_color", it).apply()
-                                }
+                                },
                             )
                             Option(
                                 title = "Fullscreen Version Selector",
@@ -142,27 +151,33 @@ fun AppSettingsDialog(showDialog: Boolean, onDismissRequest: () -> Unit) {
                                 onCheckedChange = {
                                     isFullscreenVersionSelector.value = it
                                     uiPrefs.edit().putBoolean("fullscreen_version_selector", it).apply()
-                                }
+                                },
                             )
                             if (!isFullscreenVersionSelector.value) {
                                 Option(
                                     title = "Version Selector Height",
                                     description = "${versionSelectorHeight.intValue} dp",
-                                    modifier = Modifier.clickable {
-                                        inputDialogTitle.value = "Version Selector Height"
-                                        inputDialogLabel.value = "Height (dp)"
-                                        inputDialogInitialValue.value = versionSelectorHeight.intValue.toString()
-                                        inputDialogFilters.value = Regex("[0-9]{1,4}")
-                                        inputDialogKeyboardOptions.value = KeyboardOptions(keyboardType = KeyboardType.Number)
-                                        inputDialogOnDismissRequest.value = {
-                                            versionSelectorHeight.intValue = it.toInt()
-                                            uiPrefs.edit().putInt("version_selector_height", it.toInt()).apply()
-                                        }
-                                        showInputDialog.value = true
-                                    }
+                                    modifier =
+                                        Modifier.clickable {
+                                            inputDialogTitle.value = "Version Selector Height"
+                                            inputDialogLabel.value = "Height (dp)"
+                                            inputDialogInitialValue.value = versionSelectorHeight.intValue.toString()
+                                            inputDialogFilters.value = Regex("[0-9]{1,4}")
+                                            inputDialogKeyboardOptions.value = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                            inputDialogOnDismissRequest.value = {
+                                                versionSelectorHeight.intValue = it.toInt()
+                                                uiPrefs.edit().putInt("version_selector_height", it.toInt()).apply()
+                                            }
+                                            showInputDialog.value = true
+                                        },
                                 )
                             }
-                            Text("Version List", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(24.dp, 24.dp, 24.dp, 0.dp))
+                            Text(
+                                "Version List",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(24.dp, 24.dp, 24.dp, 0.dp),
+                            )
                             Option(
                                 title = "Show Version Code",
                                 description = "Show version code in version list",
@@ -170,7 +185,7 @@ fun AppSettingsDialog(showDialog: Boolean, onDismissRequest: () -> Unit) {
                                 onCheckedChange = {
                                     showVersionCode.value = it
                                     versionListPrefs.edit().putBoolean("show_version_code", it).apply()
-                                }
+                                },
                             )
                             Option(
                                 title = "Show Version Type",
@@ -179,7 +194,7 @@ fun AppSettingsDialog(showDialog: Boolean, onDismissRequest: () -> Unit) {
                                 onCheckedChange = {
                                     showVersionType.value = it
                                     versionListPrefs.edit().putBoolean("show_version_type", it).apply()
-                                }
+                                },
                             )
                             Option(
                                 title = "Show Dividers",
@@ -188,7 +203,7 @@ fun AppSettingsDialog(showDialog: Boolean, onDismissRequest: () -> Unit) {
                                 onCheckedChange = {
                                     showDividers.value = it
                                     versionListPrefs.edit().putBoolean("show_dividers", it).apply()
-                                }
+                                },
                             )
                             Option(
                                 title = "Combine Versions",
@@ -197,7 +212,7 @@ fun AppSettingsDialog(showDialog: Boolean, onDismissRequest: () -> Unit) {
                                 onCheckedChange = {
                                     combineVersions.value = it
                                     versionListPrefs.edit().putBoolean("combine_versions", it).apply()
-                                }
+                                },
                             )
                         }
                     }
@@ -212,7 +227,7 @@ fun AppSettingsDialog(showDialog: Boolean, onDismissRequest: () -> Unit) {
                     onDismissRequest = {
                         inputDialogOnDismissRequest.value(it)
                         showInputDialog.value = false
-                    }
+                    },
                 )
             }
             DisposableEffect(Unit) {
@@ -230,35 +245,36 @@ fun Option(
     description: String,
     state: Boolean? = null,
     modifier: Modifier = Modifier,
-    onCheckedChange: (Boolean) -> Unit = {}
+    onCheckedChange: (Boolean) -> Unit = {},
 ) {
     Row(
         modifier
             .fillMaxWidth()
             .padding(24.dp, 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
             Modifier
-                .weight(1f)
+                .weight(1f),
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyMedium,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         if (state != null) {
             VerticalDivider(
                 Modifier
                     .height(30.dp)
-                    .padding(16.dp, 0.dp))
+                    .padding(16.dp, 0.dp),
+            )
             Switch(
                 checked = state,
                 onCheckedChange = { bool ->
@@ -272,7 +288,7 @@ fun Option(
                             Icon(Icons.Default.LightMode, contentDescription = "Light Mode")
                         }
                     }
-                }
+                },
             )
         }
     }

@@ -35,7 +35,15 @@ import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InputDialog(showDialog: Boolean, title: String, label: String, initialValue: String, filters: Regex, keyboardOptions: KeyboardOptions = KeyboardOptions.Default , onDismissRequest: (String) -> Unit) {
+fun InputDialog(
+    showDialog: Boolean,
+    title: String,
+    label: String,
+    initialValue: String,
+    filters: Regex,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    onDismissRequest: (String) -> Unit,
+) {
     var animateIn by remember { mutableStateOf(false) }
     var showAnimatedDialog by remember { mutableStateOf(false) }
     val text = remember { mutableStateOf("") }
@@ -49,25 +57,28 @@ fun InputDialog(showDialog: Boolean, title: String, label: String, initialValue:
         onDismissRequest = {
             animateIn = false
             onDismissRequest(initialValue)
-        }
+        },
     ) {
         LaunchedEffect(Unit) {
             animateIn = true
         }
         AnimatedVisibility(
             visible = animateIn,
-            enter = fadeIn(spring(stiffness = Spring.StiffnessHigh)) + scaleIn(
-                initialScale = .8f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            ),
-            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f)
+            enter =
+                fadeIn(spring(stiffness = Spring.StiffnessHigh)) +
+                    scaleIn(
+                        initialScale = .8f,
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                    ),
+            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f),
         ) {
             Surface(
                 shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = AlertDialogDefaults.TonalElevation
+                tonalElevation = AlertDialogDefaults.TonalElevation,
             ) {
                 Column(modifier = Modifier.padding(vertical = 24.dp, horizontal = 0.dp)) {
                     Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(24.dp, 0.dp))
@@ -82,21 +93,24 @@ fun InputDialog(showDialog: Boolean, title: String, label: String, initialValue:
                         label = { Text(label) },
                         modifier = Modifier.padding(24.dp, 0.dp),
                         keyboardOptions = keyboardOptions,
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                onDismissRequest(text.value)
-                            }
-                        )
+                        keyboardActions =
+                            KeyboardActions(
+                                onDone = {
+                                    onDismissRequest(text.value)
+                                },
+                            ),
                     )
                     TextButton(
                         onClick = {
-                            if(text.value.matches(filters))
+                            if (text.value.matches(filters)) {
                                 onDismissRequest(text.value)
+                            }
                             animateIn = false
                         },
-                        modifier = Modifier
-                            .align(Alignment.End)
-                            .padding(top = 16.dp)
+                        modifier =
+                            Modifier
+                                .align(Alignment.End)
+                                .padding(top = 16.dp),
                     ) {
                         Text("Done")
                     }

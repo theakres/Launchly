@@ -39,18 +39,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.canhub.cropper.CropImageView
 import com.akres.launchly.utils.ActionButton
 import com.akres.launchly.utils.CropImageViewCompose
 import com.akres.launchly.utils.scaleBitmap
 import com.akres.launchly.utils.squareBitmap
+import com.canhub.cropper.CropImageView
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImageCropper(
     showDialog: Boolean,
     uri: Uri,
-    onConfirmation: (version: Bitmap?) -> Unit
+    onConfirmation: (version: Bitmap?) -> Unit,
 ) {
     val context = LocalContext.current
     var animateIn by remember { mutableStateOf(false) }
@@ -60,13 +60,15 @@ fun ImageCropper(
 
     LaunchedEffect(uri) {
         croppedImageView = null
-        bitmap = squareBitmap(
-            scaleBitmap(
-                BitmapFactory.decodeStream(
-                    context.contentResolver.openInputStream(uri)
-                ), 1000
+        bitmap =
+            squareBitmap(
+                scaleBitmap(
+                    BitmapFactory.decodeStream(
+                        context.contentResolver.openInputStream(uri),
+                    ),
+                    1000,
+                ),
             )
-        )
     }
 
     LaunchedEffect(showDialog) {
@@ -79,54 +81,59 @@ fun ImageCropper(
         onDismissRequest = {
             onConfirmation(null)
             animateIn = false
-        }
+        },
     ) {
         LaunchedEffect(Unit) {
             animateIn = true
         }
         AnimatedVisibility(
             visible = animateIn,
-            enter = fadeIn(spring(stiffness = Spring.StiffnessHigh)) + scaleIn(
-                initialScale = .8f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            ),
-            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f)
+            enter =
+                fadeIn(spring(stiffness = Spring.StiffnessHigh)) +
+                    scaleIn(
+                        initialScale = .8f,
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                    ),
+            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f),
         ) {
             Surface(
                 shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = AlertDialogDefaults.TonalElevation
+                tonalElevation = AlertDialogDefaults.TonalElevation,
             ) {
                 Column(modifier = Modifier.padding(vertical = 8.dp, horizontal = 24.dp)) {
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
                             "Crop Icon",
                             style = MaterialTheme.typography.headlineSmall,
-                            modifier = Modifier.padding(vertical = 16.dp)
+                            modifier = Modifier.padding(vertical = 16.dp),
                         )
                         ActionButton(
-                            modifier = Modifier
-                                .padding(8.dp)
-                                .size(48.dp)
-                                .aspectRatio(1f),
+                            modifier =
+                                Modifier
+                                    .padding(8.dp)
+                                    .size(48.dp)
+                                    .aspectRatio(1f),
                             icon = Icons.Default.Rotate90DegreesCw,
                             backgroundColor = MaterialTheme.colorScheme.primary,
                             onClick = {
                                 croppedImageView?.rotateImage(90)
-                            }
+                            },
                         )
                     }
                     CropImageViewCompose(
-                        modifier = Modifier
-                            .clip(MaterialTheme.shapes.medium)
-                            .fillMaxWidth()
-                            .aspectRatio(1f),
+                        modifier =
+                            Modifier
+                                .clip(MaterialTheme.shapes.medium)
+                                .fillMaxWidth()
+                                .aspectRatio(1f),
                     ) {
                         setImageBitmap(bitmap!!)
                         setAspectRatio(1, 1)
@@ -136,15 +143,16 @@ fun ImageCropper(
 
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         TextButton(
                             onClick = {
                                 onConfirmation(null)
                                 animateIn = false
                             },
-                            modifier = Modifier
-                                .padding(top = 16.dp)
+                            modifier =
+                                Modifier
+                                    .padding(top = 16.dp),
                         ) {
                             Text("Cancel")
                         }
@@ -153,8 +161,9 @@ fun ImageCropper(
                                 onConfirmation(croppedImageView?.getCroppedImage())
                                 animateIn = false
                             },
-                            modifier = Modifier
-                                .padding(top = 16.dp)
+                            modifier =
+                                Modifier
+                                    .padding(top = 16.dp),
                         ) {
                             Text("Save")
                         }

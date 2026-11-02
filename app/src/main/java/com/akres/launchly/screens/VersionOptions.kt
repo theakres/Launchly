@@ -54,13 +54,12 @@ import com.akres.launchly.utils.SavedVersionData
 import com.akres.launchly.utils.saveIconToFile
 import java.io.File
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VersionOptions(
     showDialog: Boolean,
     savedVersionData: SavedVersionData,
-    onConfirmation: (version: SavedVersionData?) -> Unit
+    onConfirmation: (version: SavedVersionData?) -> Unit,
 ) {
     val context = LocalContext.current
     var animateIn by remember { mutableStateOf(false) }
@@ -69,15 +68,25 @@ fun VersionOptions(
     var name by remember { mutableStateOf(savedVersionData.name) }
     var customIcon by remember { mutableStateOf(savedVersionData.customIcon) }
     var icon by remember { mutableStateOf<Bitmap?>(null) }
-    val default = context.assets.open("default_icon.png").use {
-        BitmapFactory.decodeStream(it)
-    }.asImageBitmap()
+    val default =
+        context.assets
+            .open("default_icon.png")
+            .use {
+                BitmapFactory.decodeStream(it)
+            }.asImageBitmap()
     val showImageCropper = remember { mutableStateOf(false) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     LaunchedEffect(savedVersionData) {
         name = savedVersionData.name
         customIcon = savedVersionData.customIcon
-        icon = if (customIcon) BitmapFactory.decodeFile("${context.filesDir}/versions/${savedVersionData.installationId}/custom_icon.png") else null
+        icon =
+            if (customIcon) {
+                BitmapFactory.decodeFile(
+                    "${context.filesDir}/versions/${savedVersionData.installationId}/custom_icon.png",
+                )
+            } else {
+                null
+            }
         imageUri = null
     }
     if (imageUri != null) {
@@ -89,20 +98,21 @@ fun VersionOptions(
                     icon = it
                 }
                 showImageCropper.value = false
-            }
+            },
         )
     }
-    val pickMediaLauncher = rememberLauncherForActivityResult(
-        contract = PickVisualMedia(),
-        onResult = { uri ->
-            if (uri != null) {
-                imageUri = uri
-                showImageCropper.value = true
-            } else {
-                Log.d("PhotoPicker", "No media selected")
-            }
-        }
-    )
+    val pickMediaLauncher =
+        rememberLauncherForActivityResult(
+            contract = PickVisualMedia(),
+            onResult = { uri ->
+                if (uri != null) {
+                    imageUri = uri
+                    showImageCropper.value = true
+                } else {
+                    Log.d("PhotoPicker", "No media selected")
+                }
+            },
+        )
     LaunchedEffect(showDialog) {
         if (showDialog) showAnimatedDialog = true
     }
@@ -112,58 +122,63 @@ fun VersionOptions(
         onDismissRequest = {
             onConfirmation(null)
             animateIn = false
-        }
+        },
     ) {
         LaunchedEffect(Unit) {
             animateIn = true
         }
         AnimatedVisibility(
             visible = animateIn,
-            enter = fadeIn(spring(stiffness = Spring.StiffnessHigh)) + scaleIn(
-                initialScale = .8f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            ),
-            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f)
+            enter =
+                fadeIn(spring(stiffness = Spring.StiffnessHigh)) +
+                    scaleIn(
+                        initialScale = .8f,
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                    ),
+            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f),
         ) {
             Surface(
                 shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = AlertDialogDefaults.TonalElevation
+                tonalElevation = AlertDialogDefaults.TonalElevation,
             ) {
                 Column(modifier = Modifier.padding(vertical = 8.dp, horizontal = 24.dp)) {
                     Text(
                         "Customize ${savedVersionData.name}",
                         style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(vertical = 16.dp)
+                        modifier = Modifier.padding(vertical = 16.dp),
                     )
                     Column {
                         Category("General")
-                        Row (
+                        Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(80.dp)
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(80.dp),
                         ) {
-                            val iconModifier = Modifier
-                                .aspectRatio(1f)
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(Color.Gray)
+                            val iconModifier =
+                                Modifier
+                                    .aspectRatio(1f)
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(Color.Gray)
                             Image(
                                 bitmap = if (customIcon) icon?.asImageBitmap() ?: default else default,
                                 contentDescription = "Version Icon",
-                                modifier = iconModifier
+                                modifier = iconModifier,
                             )
-
 
                             TextField(
                                 value = name,
                                 onValueChange = { name = it },
                                 label = { Text("Display Name") },
-                                modifier = Modifier
-                                    .padding(8.dp, 0.dp, 0.dp)
-                                    .fillMaxWidth()
+                                modifier =
+                                    Modifier
+                                        .padding(8.dp, 0.dp, 0.dp)
+                                        .fillMaxWidth(),
                             )
                         }
                         Row(
@@ -174,7 +189,7 @@ fun VersionOptions(
                                 onCheckedChange = {
                                     customIcon = it
                                 },
-                                modifier = Modifier.padding(8.dp)
+                                modifier = Modifier.padding(8.dp),
                             )
                             if (customIcon) {
                                 OutlinedButton(
@@ -182,34 +197,42 @@ fun VersionOptions(
                                     onClick = {
                                         pickMediaLauncher.launch(
                                             PickVisualMediaRequest(
-                                                PickVisualMedia.ImageOnly
-                                            )
+                                                PickVisualMedia.ImageOnly,
+                                            ),
                                         )
-                                    }
+                                    },
                                 ) {
                                     Text("Edit Icon")
                                 }
                             } else {
-                                Text("Use Custom Icon", modifier = Modifier
-                                    .padding(8.dp)
-                                    .fillMaxWidth())
+                                Text(
+                                    "Use Custom Icon",
+                                    modifier =
+                                        Modifier
+                                            .padding(8.dp)
+                                            .fillMaxWidth(),
+                                )
                             }
                         }
                     }
                     TextButton(
                         onClick = {
-                            val iconFile = File("${context.filesDir}/versions/${savedVersionData.installationId}/${
-                                if (customIcon) "custom_icon" else "default_icon"
-                            }.png")
-                            val bitmapDrawable: Drawable? = if (customIcon && icon != null) {
-                                BitmapDrawable(context.resources, icon)
-                            } else {
-                                null
-                            }
+                            val iconFile =
+                                File(
+                                    "${context.filesDir}/versions/${savedVersionData.installationId}/${
+                                        if (customIcon) "custom_icon" else "default_icon"
+                                    }.png",
+                                )
+                            val bitmapDrawable: Drawable? =
+                                if (customIcon && icon != null) {
+                                    BitmapDrawable(context.resources, icon)
+                                } else {
+                                    null
+                                }
                             if (bitmapDrawable != null) {
                                 saveIconToFile(
                                     bitmapDrawable,
-                                    iconFile
+                                    iconFile,
                                 )
                             }
 
@@ -217,14 +240,15 @@ fun VersionOptions(
                                 savedVersionData.copy(
                                     name = name,
                                     customIcon = customIcon,
-                                    dateModified = System.currentTimeMillis()
-                                )
+                                    dateModified = System.currentTimeMillis(),
+                                ),
                             )
                             animateIn = false
                         },
-                        modifier = Modifier
-                            .align(Alignment.End)
-                            .padding(top = 16.dp)
+                        modifier =
+                            Modifier
+                                .align(Alignment.End)
+                                .padding(top = 16.dp),
                     ) {
                         Text("Save")
                     }

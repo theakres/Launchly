@@ -55,11 +55,15 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 
-
 @SuppressLint("ApplySharedPref")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsDialog(showDialog: Boolean, navHostController: NavHostController, userProfileInfo: List<String?>, onDismissRequest: () -> Unit) {
+fun SettingsDialog(
+    showDialog: Boolean,
+    navHostController: NavHostController,
+    userProfileInfo: List<String?>,
+    onDismissRequest: () -> Unit,
+) {
     val context = LocalContext.current
 
     var animateIn by remember { mutableStateOf(false) }
@@ -75,64 +79,83 @@ fun SettingsDialog(showDialog: Boolean, navHostController: NavHostController, us
         onDismissRequest = {
             animateIn = false
             onDismissRequest()
-        }
+        },
     ) {
         LaunchedEffect(Unit) {
             animateIn = true
         }
         AnimatedVisibility(
             visible = animateIn,
-            enter = fadeIn(spring(stiffness = Spring.StiffnessHigh)) + scaleIn(
-                initialScale = .8f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            ),
-            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f)
+            enter =
+                fadeIn(spring(stiffness = Spring.StiffnessHigh)) +
+                    scaleIn(
+                        initialScale = .8f,
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                    ),
+            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f),
         ) {
             Surface(
                 shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = AlertDialogDefaults.TonalElevation
+                tonalElevation = AlertDialogDefaults.TonalElevation,
             ) {
                 Column(modifier = Modifier.padding(vertical = 24.dp, horizontal = 24.dp)) {
-                    Column (
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                MaterialTheme.colorScheme.surfaceContainer,
-                                MaterialTheme.shapes.extraLarge
-                            )
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(19.dp)
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceContainer,
+                                    MaterialTheme.shapes.extraLarge,
+                                ).padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(19.dp),
                     ) {
-                        if (userProfileInfo.isNotEmpty() && userProfileInfo.size ==3) {
-                            Row(modifier = Modifier
-                                .padding(12.dp)
-                                .fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        if (userProfileInfo.isNotEmpty() && userProfileInfo.size == 3) {
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .padding(12.dp)
+                                        .fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                            ) {
                                 AsyncImage(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape),
+                                    modifier =
+                                        Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape),
                                     model = userProfileInfo[2] ?: "",
-                                    contentDescription = "User Profile"
+                                    contentDescription = "User Profile",
                                 )
                                 Column {
-                                    Text(text = userProfileInfo[0] ?: "", style = MaterialTheme.typography.bodyLarge, overflow = TextOverflow.Ellipsis, maxLines = 1)
-                                    Text(text = userProfileInfo[1] ?: "", style = MaterialTheme.typography.bodyMedium, overflow = TextOverflow.Ellipsis, maxLines = 1)
+                                    Text(
+                                        text = userProfileInfo[0] ?: "",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        overflow = TextOverflow.Ellipsis,
+                                        maxLines = 1,
+                                    )
+                                    Text(
+                                        text = userProfileInfo[1] ?: "",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        overflow = TextOverflow.Ellipsis,
+                                        maxLines = 1,
+                                    )
                                 }
                             }
-                            OutlinedButton (
+                            OutlinedButton(
                                 onClick = {
                                     showConfirmationDialog = true
                                 },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text("Log out")
                             }
                         }
                     }
-                    Column(modifier= Modifier.padding(0.dp, 8.dp)) {
+                    Column(modifier = Modifier.padding(0.dp, 8.dp)) {
                         Setting_Option("Settings", Icons.Default.Settings) {
                             showAppSettings = true
                         }
@@ -143,27 +166,27 @@ fun SettingsDialog(showDialog: Boolean, navHostController: NavHostController, us
                         }
                     }
                     Text(
-                        text = buildAnnotatedString {
-                            withLink(
-                                LinkAnnotation.Url(
-                                    "https://github.com/Zeuroux/Launchly/blob/master/POLICY.md"
-                                )
-                            ) {
-                                append("Privacy Policy")
-                            }
-                            append(" • ")
-                            withLink(
-                                LinkAnnotation.Url(
-                                    "https://github.com/Zeuroux/Launchly/blob/master/TERMS.md"
-                                )
-                            ) {
-                                append("Terms of Service")
-                            }
-                        },
+                        text =
+                            buildAnnotatedString {
+                                withLink(
+                                    LinkAnnotation.Url(
+                                        "https://github.com/Zeuroux/Launchly/blob/master/POLICY.md",
+                                    ),
+                                ) {
+                                    append("Privacy Policy")
+                                }
+                                append(" • ")
+                                withLink(
+                                    LinkAnnotation.Url(
+                                        "https://github.com/Zeuroux/Launchly/blob/master/TERMS.md",
+                                    ),
+                                ) {
+                                    append("Terms of Service")
+                                }
+                            },
                         modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
                     )
-
                 }
             }
             DisposableEffect(Unit) {
@@ -183,8 +206,15 @@ fun SettingsDialog(showDialog: Boolean, navHostController: NavHostController, us
         description = "Are you sure you want to log out?",
         onConfirmation = {
             showConfirmationDialog = false
-            context.getSharedPreferences("accountData", Context.MODE_PRIVATE).edit().clear().commit()
-            context.getSharedPreferences("onboarding", Context.MODE_PRIVATE).edit().putBoolean("onboarding_complete", false)
+            context
+                .getSharedPreferences("accountData", Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .commit()
+            context
+                .getSharedPreferences("onboarding", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("onboarding_complete", false)
                 .commit()
             navHostController.navigate("onboarding")
         },
@@ -192,24 +222,30 @@ fun SettingsDialog(showDialog: Boolean, navHostController: NavHostController, us
         onDismiss = {
             showConfirmationDialog = false
         },
-        confirmText = "Log out"
+        confirmText = "Log out",
     )
 }
+
 @Composable
-fun Setting_Option(title: String, icon: ImageVector, onClick: () -> Unit) {
+fun Setting_Option(
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp)
-            .clickable {
-                onClick()
-            }.padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .clickable {
+                    onClick()
+                }.padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             icon,
             title,
-            Modifier.padding(end = 12.dp).size(24.dp)
+            Modifier.padding(end = 12.dp).size(24.dp),
         )
         Text(title)
     }

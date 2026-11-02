@@ -25,25 +25,32 @@ import java.io.File
 import java.io.IOException
 import java.util.UUID
 
-
-fun getPackageInfo(context: Context, packageName: String, flags: Int = 0): PackageInfo {
-    return if (SDK_INT >= TIRAMISU) {
+fun getPackageInfo(
+    context: Context,
+    packageName: String,
+    flags: Int = 0,
+): PackageInfo =
+    if (SDK_INT >= TIRAMISU) {
         context.packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(flags.toLong()))
     } else {
         context.packageManager.getPackageInfo(packageName, flags)
     }
-}
 
-fun getPackageInstallSource(context: Context, packageName: String): String? {
-    return if (SDK_INT >= R) {
+fun getPackageInstallSource(
+    context: Context,
+    packageName: String,
+): String? =
+    if (SDK_INT >= R) {
         context.packageManager.getInstallSourceInfo(packageName).installingPackageName
     } else {
         @Suppress("DEPRECATION")
         context.packageManager.getInstallerPackageName(packageName)
     }
-}
 
-fun saveIconToFile(icon: Drawable, destination: File) {
+fun saveIconToFile(
+    icon: Drawable,
+    destination: File,
+) {
     try {
         if (!destination.exists() || BitmapFactory.decodeFile(destination.absolutePath)?.let { !icon.toBitmap().sameAs(it) } != false) {
             destination.parentFile?.takeIf { !it.exists() }?.mkdirs()
@@ -57,68 +64,98 @@ fun saveIconToFile(icon: Drawable, destination: File) {
     }
 }
 
-fun getPackageArch(packageInfo: PackageInfo): Architecture {
-    return packageInfo.applicationInfo?.nativeLibraryDir?.let {
+fun getPackageArch(packageInfo: PackageInfo): Architecture =
+    packageInfo.applicationInfo?.nativeLibraryDir?.let {
         when {
             it.contains("arm64") -> Architecture.ARM64
             it.contains("armeabi-v7a") -> Architecture.ARM
             else -> Architecture.UNKNOWN
         }
     } ?: Architecture.UNKNOWN
-}
 
-fun installPackage(context: Context, apks: Array<File>, onStatus: (SessionResult) -> Unit) {
+fun installPackage(
+    context: Context,
+    apks: Array<File>,
+    onStatus: (SessionResult) -> Unit,
+) {
     val packageInstaller = PackageInstaller.getInstance(context)
-    val session = packageInstaller.createSession(
-        InstallParameters.Builder(apks.map { Uri.fromFile(it) })
-            .setConfirmation(Confirmation.IMMEDIATE)
-            .setInstallerType(InstallerType.SESSION_BASED)
-            .build()
-    )
+    val session =
+        packageInstaller.createSession(
+            InstallParameters
+                .Builder(apks.map { Uri.fromFile(it) })
+                .setConfirmation(Confirmation.IMMEDIATE)
+                .setInstallerType(InstallerType.SESSION_BASED)
+                .build(),
+        )
     val subscription = DisposableSubscriptionContainer()
     session.addProgressListener(subscription) { _, progress ->
         onStatus(SessionResult.OnProgress(progress.progress))
     }
-    session.addStateListener(subscription, object : Session.TerminalStateListener<InstallFailure>(session) {
-        override fun onSuccess(sessionId: UUID) {
-            onStatus(SessionResult.OnSuccess)
-        }
+    session.addStateListener(
+        subscription,
+        object : Session.TerminalStateListener<InstallFailure>(session) {
+            override fun onSuccess(sessionId: UUID) {
+                onStatus(SessionResult.OnSuccess)
+            }
 
-        override fun onFailure(sessionId: UUID, failure: InstallFailure) {
-            onStatus(SessionResult.OnFailure(failure.message ?: "Unknown error"))
-        }
+            override fun onFailure(
+                sessionId: UUID,
+                failure: InstallFailure,
+            ) {
+                onStatus(SessionResult.OnFailure(failure.message ?: "Unknown error"))
+            }
 
-        override fun onCancelled(sessionId: UUID) {
-            onStatus(SessionResult.OnCancel)
-        }
-    })
+            override fun onCancelled(sessionId: UUID) {
+                onStatus(SessionResult.OnCancel)
+            }
+        },
+    )
 }
 
-fun uninstallApp(context: Context, packageName: String, onStatus: (SessionResult) -> Unit) {
+fun uninstallApp(
+    context: Context,
+    packageName: String,
+    onStatus: (SessionResult) -> Unit,
+) {
     val packageInstaller = PackageUninstaller.getInstance(context)
-    val session = packageInstaller.createSession(
-        UninstallParameters.Builder(packageName)
-            .setConfirmation(Confirmation.IMMEDIATE)
-            .build()
+    val session =
+        packageInstaller.createSession(
+            UninstallParameters
+                .Builder(packageName)
+                .setConfirmation(Confirmation.IMMEDIATE)
+                .build(),
+        )
+    session.addStateListener(
+        DisposableSubscriptionContainer(),
+        object : Session.TerminalStateListener<UninstallFailure>(session) {
+            override fun onSuccess(sessionId: UUID) {
+                onStatus(SessionResult.OnSuccess)
+            }
+
+            override fun onFailure(
+                sessionId: UUID,
+                failure: UninstallFailure,
+            ) {
+                onStatus(SessionResult.OnFailure("Unknown error"))
+            }
+
+            override fun onCancelled(sessionId: UUID) {
+                onStatus(SessionResult.OnCancel)
+            }
+        },
     )
-    session.addStateListener(DisposableSubscriptionContainer(), object : Session.TerminalStateListener<UninstallFailure>(session) {
-        override fun onSuccess(sessionId: UUID) {
-            onStatus(SessionResult.OnSuccess)
-        }
-
-        override fun onFailure(sessionId: UUID, failure: UninstallFailure) {
-            onStatus(SessionResult.OnFailure("Unknown error"))
-        }
-
-        override fun onCancelled(sessionId: UUID) {
-            onStatus(SessionResult.OnCancel)
-        }
-    })
 }
 
 sealed class SessionResult {
     data object OnSuccess : SessionResult()
-    data class OnFailure(val message: String? = null) : SessionResult()
-    data class OnProgress(val progress: Int) : SessionResult()
+
+    data class OnFailure(
+        val message: String? = null,
+    ) : SessionResult()
+
+    data class OnProgress(
+        val progress: Int,
+    ) : SessionResult()
+
     data object OnCancel : SessionResult()
 }

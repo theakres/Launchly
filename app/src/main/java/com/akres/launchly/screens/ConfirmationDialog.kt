@@ -32,7 +32,14 @@ import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConfirmationDialog(showDialog: Boolean, title: String, description:String, onConfirmation: () -> Unit, onDismiss: () -> Unit, confirmText : String) {
+fun ConfirmationDialog(
+    showDialog: Boolean,
+    title: String,
+    description: String,
+    onConfirmation: () -> Unit,
+    onDismiss: () -> Unit,
+    confirmText: String,
+) {
     var animateIn by remember { mutableStateOf(false) }
     var showAnimatedDialog by remember { mutableStateOf(false) }
     LaunchedEffect(showDialog) {
@@ -44,31 +51,34 @@ fun ConfirmationDialog(showDialog: Boolean, title: String, description:String, o
         onDismissRequest = {
             animateIn = false
             onDismiss()
-        }
+        },
     ) {
         LaunchedEffect(Unit) {
             animateIn = true
         }
         AnimatedVisibility(
             visible = animateIn,
-            enter = fadeIn(spring(stiffness = Spring.StiffnessHigh)) + scaleIn(
-                initialScale = .8f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            ),
-            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f)
+            enter =
+                fadeIn(spring(stiffness = Spring.StiffnessHigh)) +
+                    scaleIn(
+                        initialScale = .8f,
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                    ),
+            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f),
         ) {
             Surface(
                 shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = AlertDialogDefaults.TonalElevation
+                tonalElevation = AlertDialogDefaults.TonalElevation,
             ) {
                 Column(modifier = Modifier.padding(vertical = 8.dp, horizontal = 24.dp)) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.headlineMedium,
-                        modifier = Modifier.padding(vertical = 16.dp)
+                        modifier = Modifier.padding(vertical = 16.dp),
                     )
                     Text(
                         text = description,
@@ -76,15 +86,16 @@ fun ConfirmationDialog(showDialog: Boolean, title: String, description:String, o
                     )
                     Row(
                         horizontalArrangement = Arrangement.End,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         TextButton(
                             onClick = {
                                 animateIn = false
                                 onDismiss()
                             },
-                            modifier = Modifier
-                                .padding(top = 16.dp)
+                            modifier =
+                                Modifier
+                                    .padding(top = 16.dp),
                         ) {
                             Text("Cancel")
                         }
@@ -93,8 +104,9 @@ fun ConfirmationDialog(showDialog: Boolean, title: String, description:String, o
                                 onConfirmation()
                                 animateIn = false
                             },
-                            modifier = Modifier
-                                .padding(top = 16.dp)
+                            modifier =
+                                Modifier
+                                    .padding(top = 16.dp),
                         ) {
                             Text(confirmText)
                         }

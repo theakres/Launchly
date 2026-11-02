@@ -29,31 +29,43 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.canhub.cropper.CropImageView
 
 @Composable
-fun Category(text: String, modifier: Modifier = Modifier) {
+fun Category(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(8.dp)
+        modifier = modifier.padding(8.dp),
     )
 }
 
 @Composable
-fun ActionButton(modifier: Modifier, icon: ImageVector, backgroundColor: Color, onClick: () -> Unit, loading: Boolean = false, content: @Composable () -> Unit = {}) {
+fun ActionButton(
+    modifier: Modifier,
+    icon: ImageVector,
+    backgroundColor: Color,
+    onClick: () -> Unit,
+    loading: Boolean = false,
+    content: @Composable () -> Unit = {},
+) {
     Box(
-        modifier = modifier
-            .clip(MaterialTheme.shapes.medium)
-            .background(backgroundColor)
-            .clickable {
-                if (!loading) onClick()
-            }
+        modifier =
+            modifier
+                .clip(MaterialTheme.shapes.medium)
+                .background(backgroundColor)
+                .clickable {
+                    if (!loading) onClick()
+                },
     ) {
         if (loading) {
             CircularProgressIndicator(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .width(24.dp)
-                    .offset { IntOffset(0, 7.5.dp.roundToPx()) },
+                modifier =
+                    Modifier
+                        .align(Alignment.Center)
+                        .width(24.dp)
+                        .offset { IntOffset(0, 7.5.dp.roundToPx()) },
                 color = Color.White,
                 trackColor = Color.Transparent,
             )
@@ -62,7 +74,7 @@ fun ActionButton(modifier: Modifier, icon: ImageVector, backgroundColor: Color, 
                 imageVector = icon,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.align(Alignment.Center)
+                modifier = Modifier.align(Alignment.Center),
             )
         }
         content()
@@ -70,23 +82,32 @@ fun ActionButton(modifier: Modifier, icon: ImageVector, backgroundColor: Color, 
 }
 
 @Composable
-fun ProgressBox(modifier: Modifier, progressColor: Color, progress: Float, content: @Composable () -> Unit) {
+fun ProgressBox(
+    modifier: Modifier,
+    progressColor: Color,
+    progress: Float,
+    content: @Composable () -> Unit,
+) {
     Box(modifier) {
         Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(progress)
-                .background(progressColor)
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(progress)
+                    .background(progressColor),
         )
         content()
     }
 }
 
 @Composable
-fun DropDown(menu: List<Pair<String,() -> Unit>>, expanded: MutableState<Boolean>) {
+fun DropDown(
+    menu: List<Pair<String, () -> Unit>>,
+    expanded: MutableState<Boolean>,
+) {
     DropdownMenu(
         expanded = expanded.value,
-        onDismissRequest = { expanded.value = false }
+        onDismissRequest = { expanded.value = false },
     ) {
         menu.forEach { (text, action) ->
             DropdownMenuItem(
@@ -94,7 +115,7 @@ fun DropDown(menu: List<Pair<String,() -> Unit>>, expanded: MutableState<Boolean
                 onClick = {
                     action()
                     expanded.value = false
-                }
+                },
             )
         }
     }
@@ -104,16 +125,16 @@ fun DropDown(menu: List<Pair<String,() -> Unit>>, expanded: MutableState<Boolean
 fun f(downloadProgress: Float) = "%.2f".format(downloadProgress)
 
 @Composable
-fun Info(text : String) = Text(text, style = MaterialTheme.typography.bodySmall, overflow = TextOverflow.Ellipsis)
+fun Info(text: String) = Text(text, style = MaterialTheme.typography.bodySmall, overflow = TextOverflow.Ellipsis)
 
 @Composable
 fun CropImageViewCompose(
     modifier: Modifier = Modifier,
-    configureCropImageView: CropImageView.() -> Unit
+    configureCropImageView: CropImageView.() -> Unit,
 ) {
-    Box (
+    Box(
         modifier = modifier,
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         AndroidView(
             factory = { context ->
@@ -124,7 +145,7 @@ fun CropImageViewCompose(
             update = {
                 it.layoutParams.width = LayoutParams.MATCH_PARENT
                 configureCropImageView(it)
-            }
+            },
         )
     }
 }

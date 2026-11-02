@@ -16,16 +16,17 @@ data class VersionData(
     val code: Long,
     val name: String,
     val type: VersionType,
-    val architecture: Architecture
+    val architecture: Architecture,
 ) : Serializable
-
 
 enum class OptionMode {
     ADD,
-    EDIT
+    EDIT,
 }
 
-class VersionsViewModel(private val arch: String) : ViewModel() {
+class VersionsViewModel(
+    private val arch: String,
+) : ViewModel() {
     private val client = OkHttpClient()
 
     private val _versionData = MutableStateFlow<List<VersionData>>(emptyList())
@@ -43,12 +44,16 @@ class VersionsViewModel(private val arch: String) : ViewModel() {
         isLoading.value = true
         viewModelScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
-                    val request = Request.Builder()
-                        .url("https://raw.githubusercontent.com/minecraft-linux/mcpelauncher-versiondb/refs/heads/master/versions.$arch.json.min")
-                        .build()
-                    client.newCall(request).execute()
-                }
+                val result =
+                    withContext(Dispatchers.IO) {
+                        val request =
+                            Request
+                                .Builder()
+                                .url(
+                                    "https://raw.githubusercontent.com/minecraft-linux/mcpelauncher-versiondb/refs/heads/master/versions.$arch.json.min",
+                                ).build()
+                        client.newCall(request).execute()
+                    }
 
                 if (result.isSuccessful) {
                     val jsonResponse = result.body?.string()
@@ -68,25 +73,29 @@ class VersionsViewModel(private val arch: String) : ViewModel() {
         }
     }
 
-
-
-    private fun parseVersionData(jsonString: String): List<VersionData> {
-        return jsonString
+    private fun parseVersionData(jsonString: String): List<VersionData> =
+        jsonString
             .removeSurrounding("[[", "]]")
             .split("],[")
             .map {
-                val (versionCode, versionName, versionType) = it.split(",")
-                    .map { part -> part.trim('"') }
+                val (versionCode, versionName, versionType) =
+                    it
+                        .split(",")
+                        .map { part -> part.trim('"') }
                 VersionData(versionCode.toLong(), versionName, VersionType.entries[versionType.toInt()], Architecture.fromString(arch))
-            }
-            .filter { it.code >= 871000500 }
+            }.filter { it.code >= 871000500 }
             .reversed()
-    }
 }
 
-fun getVersionTypeByCode(versionCode: Long, versionsViewModels: List<VersionsViewModel>): VersionType {
+fun getVersionTypeByCode(
+    versionCode: Long,
+    versionsViewModels: List<VersionsViewModel>,
+): VersionType {
     versionsViewModels.iterator().forEach {
-        val type: VersionType? = it.versionData.value.find { v -> v.code == versionCode }?.type
+        val type: VersionType? =
+            it.versionData.value
+                .find { v -> v.code == versionCode }
+                ?.type
         if (type != null) {
             return type
         }

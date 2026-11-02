@@ -81,43 +81,46 @@ import com.akres.launchly.activities.LoginActivity
 import com.akres.launchly.utils.GPlayAPI.getUserProfileArtwork
 import kotlinx.coroutines.launch
 
-
 data class OnBoardModel(
     val id: String,
     val icon: ImageVector,
     val title: String,
-    val description: String
+    val description: String,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Onboarding(onFinish: () -> Unit = {}, removes: List<String> = emptyList()) {
-    val pages = mutableListOf(
-        OnBoardModel(
-            id = "Start",
-            title = stringResource(R.string.onboarding_title_1),
-            description = stringResource(R.string.onboarding_description_1),
-            icon = Icons.Default.SyncAlt
-        ),
-        OnBoardModel(
-            id = "SignIn",
-            title = stringResource(R.string.onboarding_title_2),
-            description = stringResource(R.string.onboarding_description_2),
-            icon = Icons.Default.AccountCircle
-        ),
-        OnBoardModel(
-            id = "Permissions",
-            title = stringResource(R.string.onboarding_title_3),
-            description = stringResource(R.string.onboarding_description_3),
-            icon = Icons.Default.Key
-        ),
-        OnBoardModel(
-            id = "Finish",
-            title = stringResource(R.string.onboarding_title_4),
-            description = stringResource(R.string.onboarding_description_4),
-            icon = Icons.Default.Check
+fun Onboarding(
+    onFinish: () -> Unit = {},
+    removes: List<String> = emptyList(),
+) {
+    val pages =
+        mutableListOf(
+            OnBoardModel(
+                id = "Start",
+                title = stringResource(R.string.onboarding_title_1),
+                description = stringResource(R.string.onboarding_description_1),
+                icon = Icons.Default.SyncAlt,
+            ),
+            OnBoardModel(
+                id = "SignIn",
+                title = stringResource(R.string.onboarding_title_2),
+                description = stringResource(R.string.onboarding_description_2),
+                icon = Icons.Default.AccountCircle,
+            ),
+            OnBoardModel(
+                id = "Permissions",
+                title = stringResource(R.string.onboarding_title_3),
+                description = stringResource(R.string.onboarding_description_3),
+                icon = Icons.Default.Key,
+            ),
+            OnBoardModel(
+                id = "Finish",
+                title = stringResource(R.string.onboarding_title_4),
+                description = stringResource(R.string.onboarding_description_4),
+                icon = Icons.Default.Check,
+            ),
         )
-    )
     removes.forEach { id ->
         pages.removeIf { it.id == id }
     }
@@ -127,9 +130,10 @@ fun Onboarding(onFinish: () -> Unit = {}, removes: List<String> = emptyList()) {
     var userScrollEnabled by remember {
         mutableStateOf(true)
     }
-    val preventForwardAt = remember {
-        mutableIntStateOf(-1)
-    }
+    val preventForwardAt =
+        remember {
+            mutableIntStateOf(-1)
+        }
     val message = stringResource(R.string.onboarding_warning)
     LaunchedEffect(pagerState.currentPage) {
         if (preventForwardAt.intValue < pagerState.currentPage && preventForwardAt.intValue != -1) {
@@ -140,41 +144,42 @@ fun Onboarding(onFinish: () -> Unit = {}, removes: List<String> = emptyList()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) }
+                title = { Text(stringResource(R.string.app_name)) },
             )
-        }
+        },
     ) { innerPadding ->
         Column(
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
         ) {
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .pointerInput(Unit) {
-                        awaitEachGesture {
-                            awaitFirstDown(pass = PointerEventPass.Initial)
-                            do {
-                                val event: PointerEvent = awaitPointerEvent(
-                                    pass = PointerEventPass.Initial
-                                )
-                                event.changes.forEach {
-                                    val diffX = it.position.x - it.previousPosition.x
-                                    userScrollEnabled =
-                                        if (pagerState.currentPage == preventForwardAt.intValue) {
-                                            !(diffX < 0)
-                                        } else {
-                                            true
-                                        }
-                                }
-
-                            } while (event.changes.any { it.pressed })
-                        }
-                    },
-                userScrollEnabled = userScrollEnabled
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                awaitFirstDown(pass = PointerEventPass.Initial)
+                                do {
+                                    val event: PointerEvent =
+                                        awaitPointerEvent(
+                                            pass = PointerEventPass.Initial,
+                                        )
+                                    event.changes.forEach {
+                                        val diffX = it.position.x - it.previousPosition.x
+                                        userScrollEnabled =
+                                            if (pagerState.currentPage == preventForwardAt.intValue) {
+                                                !(diffX < 0)
+                                            } else {
+                                                true
+                                            }
+                                    }
+                                } while (event.changes.any { it.pressed })
+                            }
+                        },
+                userScrollEnabled = userScrollEnabled,
             ) { page ->
-                OnBoardItem(pages[page]){
+                OnBoardItem(pages[page]) {
                     val key = pages[page].id
                     when (key) {
                         "Start" -> {
@@ -183,44 +188,47 @@ fun Onboarding(onFinish: () -> Unit = {}, removes: List<String> = emptyList()) {
                                     title = stringResource(R.string.onboarding_source_code),
                                     icon = Icons.Default.Code,
                                     description = stringResource(R.string.onboarding_source_code_description),
-                                    link = "https://github.com/Zeuroux/Launchly/"
+                                    link = "https://github.com/Zeuroux/Launchly/",
                                 )
                                 LinkButton(
                                     title = stringResource(R.string.onboarding_license),
                                     icon = ImageVector.vectorResource(R.drawable.ic_license),
                                     description = stringResource(R.string.onboarding_license_description),
-                                    link = "https://github.com/Zeuroux/Launchly/blob/master/LICENSE"
+                                    link = "https://github.com/Zeuroux/Launchly/blob/master/LICENSE",
                                 )
                                 LinkButton(
                                     title = stringResource(R.string.onboarding_privacy_policy),
                                     icon = Icons.Default.Policy,
                                     description = stringResource(R.string.onboarding_privacy_policy_description),
-                                    link = "https://github.com/Zeuroux/Launchly/blob/master/POLICY.md"
+                                    link = "https://github.com/Zeuroux/Launchly/blob/master/POLICY.md",
                                 )
                                 LinkButton(
                                     title = stringResource(R.string.onboarding_disclaimer),
                                     icon = Icons.Default.Info,
                                     description = stringResource(R.string.onboarding_disclaimer_description),
-                                    link = "https://github.com/Zeuroux/Launchly/blob/master/DISCLAIMER.md"
+                                    link = "https://github.com/Zeuroux/Launchly/blob/master/DISCLAIMER.md",
                                 )
                             }
                         }
+
                         "SignIn" -> {
                             if (sharedPreferences.getString("accountName", null) == null) {
                                 preventForwardAt.intValue = pages.indexOfFirst { it.id == "SignIn" }
                             }
                             GoogleSignInButton(context, preventForwardAt)
                         }
+
                         "Permissions" -> {
                             if (!context.packageManager.canRequestPackageInstalls()) {
                                 preventForwardAt.intValue = pages.indexOfFirst { it.id == "Permissions" }
                             }
                             PermissionsButton(context, preventForwardAt)
                         }
+
                         "Finish" -> {
                             Button(
                                 onClick = onFinish,
-                                modifier = Modifier.padding(16.dp)
+                                modifier = Modifier.padding(16.dp),
                             ) {
                                 Text("Finish")
                             }
@@ -229,11 +237,12 @@ fun Onboarding(onFinish: () -> Unit = {}, removes: List<String> = emptyList()) {
                 }
             }
             IndexIndicator(
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(16.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(16.dp),
                 currentPosition = pagerState.currentPage,
-                count = pages.size
+                count = pages.size,
             )
         }
     }
@@ -244,23 +253,24 @@ fun LinkButton(
     title: String,
     description: String,
     icon: ImageVector,
-    link: String
+    link: String,
 ) {
     val context = LocalContext.current
     Row(
-        modifier = Modifier
-            .clickable {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link))
-                context.startActivity(intent)
-            }
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .clickable {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link))
+                    context.startActivity(intent)
+                }.padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            modifier = Modifier
-                .size(24.dp),
+            modifier =
+                Modifier
+                    .size(24.dp),
         )
         VerticalDivider(
             modifier = Modifier.height(30.dp).padding(horizontal = 8.dp),
@@ -269,32 +279,38 @@ fun LinkButton(
             Text(
                 modifier = Modifier.padding(end = 8.dp),
                 text = title,
-                style = TextStyle(
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.W400,
-                    textAlign = TextAlign.Center,
-                )
+                style =
+                    TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.W400,
+                        textAlign = TextAlign.Center,
+                    ),
             )
             Text(
                 text = description,
-                style = TextStyle(
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.W400,
-                    textAlign = TextAlign.Center,
-                )
+                style =
+                    TextStyle(
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.W400,
+                        textAlign = TextAlign.Center,
+                    ),
             )
         }
     }
 }
 
 @Composable
-fun GoogleSignInButton(context: Context, preventForwardAt: MutableIntState) {
-    val textStyle = TextStyle(
-        fontSize = 14.sp,
-        fontWeight = FontWeight.W400,
-        color = MaterialTheme.colorScheme.onPrimary,
-        textAlign = TextAlign.Center,
-    )
+fun GoogleSignInButton(
+    context: Context,
+    preventForwardAt: MutableIntState,
+) {
+    val textStyle =
+        TextStyle(
+            fontSize = 14.sp,
+            fontWeight = FontWeight.W400,
+            color = MaterialTheme.colorScheme.onPrimary,
+            textAlign = TextAlign.Center,
+        )
     val sharedPreferences = context.getSharedPreferences("accountData", Context.MODE_PRIVATE)
     var userProfile by remember { mutableStateOf("") }
     var accountName by remember {
@@ -305,60 +321,63 @@ fun GoogleSignInButton(context: Context, preventForwardAt: MutableIntState) {
     }
     val scope = rememberCoroutineScope()
 
-    val resultLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val data = result.data
-            val newAccountName = data?.getStringExtra("accountName")
-            val newAccountEmail = data?.getStringExtra("accountEmail")
-            val accountToken = data?.getStringExtra("accountToken")
-            if (newAccountName != null && newAccountEmail != null && accountToken != null) {
-                accountName = newAccountName
-                accountEmail = newAccountEmail
+    val resultLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val data = result.data
+                val newAccountName = data?.getStringExtra("accountName")
+                val newAccountEmail = data?.getStringExtra("accountEmail")
+                val accountToken = data?.getStringExtra("accountToken")
+                if (newAccountName != null && newAccountEmail != null && accountToken != null) {
+                    accountName = newAccountName
+                    accountEmail = newAccountEmail
 
-                with(sharedPreferences.edit()) {
-                    putString("accountName", newAccountName)
-                    putString("accountEmail", newAccountEmail)
-                    putString("accountToken", accountToken)
-                    commit()
+                    with(sharedPreferences.edit()) {
+                        putString("accountName", newAccountName)
+                        putString("accountEmail", newAccountEmail)
+                        putString("accountToken", accountToken)
+                        commit()
+                    }
+                    scope.launch {
+                        userProfile = getUserProfileArtwork(context)!!
+                    }
+                    preventForwardAt.intValue = -1
+                } else {
+                    Toast.makeText(context, "Sign in failed, Try again", Toast.LENGTH_SHORT).show()
                 }
-                scope.launch {
-                    userProfile = getUserProfileArtwork(context)!!
-                }
-                preventForwardAt.intValue = -1
-            } else {
-                Toast.makeText(context, "Sign in failed, Try again", Toast.LENGTH_SHORT).show()
             }
         }
-    }
 
     Row(
-        modifier = Modifier
-            .clickable {
-                resultLauncher.launch(Intent(context, LoginActivity::class.java))
-            }
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary)
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .clickable {
+                    resultLauncher.launch(Intent(context, LoginActivity::class.java))
+                }.clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
+                .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (userProfile.isEmpty()) {
             Image(
                 painter = painterResource(R.drawable.ic_google),
                 contentDescription = null,
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .size(24.dp)
+                modifier =
+                    Modifier
+                        .padding(end = 8.dp)
+                        .size(24.dp),
             )
         } else {
             AsyncImage(
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .clip(CircleShape)
-                    .size(30.dp),
+                modifier =
+                    Modifier
+                        .padding(end = 8.dp)
+                        .clip(CircleShape)
+                        .size(30.dp),
                 model = userProfile,
-                contentDescription = "User Profile"
+                contentDescription = "User Profile",
             )
         }
         if (accountName != null) {
@@ -368,99 +387,111 @@ fun GoogleSignInButton(context: Context, preventForwardAt: MutableIntState) {
             Column(Modifier.padding(end = 8.dp)) {
                 Text(
                     text = stringResource(R.string.onboarding_signed_in, accountName!!),
-                    style = textStyle
+                    style = textStyle,
                 )
                 Text(
                     text = accountEmail!!,
-                    style = textStyle
+                    style = textStyle,
                 )
             }
         } else {
             Text(
                 modifier = Modifier.padding(end = 8.dp),
                 text = stringResource(R.string.onboarding_sign_in),
-                style = textStyle
+                style = textStyle,
             )
         }
     }
 }
 
 @Composable
-fun PermissionsButton(context: Context, preventForwardAt: MutableIntState) {
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()) {
-        if (context.packageManager.canRequestPackageInstalls()){
-            preventForwardAt.intValue = -1
+fun PermissionsButton(
+    context: Context,
+    preventForwardAt: MutableIntState,
+) {
+    val permissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (context.packageManager.canRequestPackageInstalls()) {
+                preventForwardAt.intValue = -1
+            }
         }
-    }
     val canInstall = context.packageManager.canRequestPackageInstalls()
     if (!canInstall) {
         Row(
-            modifier = Modifier
-                .clickable {
-                    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
-                    intent.data = Uri.parse("package:${context.packageName}")
-                    permissionLauncher.launch(intent)
-                }
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary)
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .clickable {
+                        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+                        intent.data = Uri.parse("package:${context.packageName}")
+                        permissionLauncher.launch(intent)
+                    }.clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+                    .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = Icons.Default.Settings,
                 contentDescription = null,
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .size(24.dp),
-                tint = MaterialTheme.colorScheme.onPrimary
+                modifier =
+                    Modifier
+                        .padding(end = 8.dp)
+                        .size(24.dp),
+                tint = MaterialTheme.colorScheme.onPrimary,
             )
             Text(
                 modifier = Modifier.padding(end = 8.dp),
                 text = stringResource(R.string.onboarding_allow_permissions),
-                style = TextStyle(
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.W400,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    textAlign = TextAlign.Center,
-                )
+                style =
+                    TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.W400,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        textAlign = TextAlign.Center,
+                    ),
             )
         }
     }
 }
 
 @Composable
-fun OnBoardItem(page: OnBoardModel, extras: @Composable () -> Unit = {}) {
+fun OnBoardItem(
+    page: OnBoardModel,
+    extras: @Composable () -> Unit = {},
+) {
     ReactiveLinear {
         Icon(
             imageVector = page.icon,
             contentDescription = null,
-            modifier = Modifier
-                .height(350.dp)
-                .width(350.dp)
-                .padding(bottom = 20.dp),
-            tint = MaterialTheme.colorScheme.onSurface
+            modifier =
+                Modifier
+                    .height(350.dp)
+                    .width(350.dp)
+                    .padding(bottom = 20.dp),
+            tint = MaterialTheme.colorScheme.onSurface,
         )
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = page.title, style = TextStyle(
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                )
+                text = page.title,
+                style =
+                    TextStyle(
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                    ),
             )
             Text(
                 text = page.description,
                 modifier = Modifier.padding(horizontal = 50.dp, vertical = 10.dp),
-                style = TextStyle(
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.W400,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                )
+                style =
+                    TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.W400,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                    ),
             )
             extras()
         }
@@ -474,50 +505,48 @@ fun ReactiveLinear(content: @Composable () -> Unit) {
         Row(
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) { content() }
-    }
-    else if (configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
+    } else if (configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
         ) { content() }
     }
-
-
 }
 
 @Composable
 fun IndexIndicator(
     modifier: Modifier = Modifier,
     currentPosition: Int,
-    count: Int
+    count: Int,
 ) {
     Row(
-        modifier = modifier
+        modifier = modifier,
     ) {
         repeat(count) { index ->
             val isSelected = currentPosition == index
 
-            val width by animateDpAsState(targetValue = if (isSelected) 18.dp else 8.dp,
-                label = "Size"
+            val width by animateDpAsState(
+                targetValue = if (isSelected) 18.dp else 8.dp,
+                label = "Size",
             )
             val color by animateColorAsState(
                 targetValue = if (isSelected) MaterialTheme.colorScheme.inversePrimary else Color.Transparent,
-                label = "Color"
+                label = "Color",
             )
             Box(
-                modifier = Modifier
-                    .padding(4.dp)
-                    .width(width)
-                    .height(8.dp)
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                    .background(color = color, shape = CircleShape)
+                modifier =
+                    Modifier
+                        .padding(4.dp)
+                        .width(width)
+                        .height(8.dp)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(10.dp),
+                        ).background(color = color, shape = CircleShape),
             )
         }
     }

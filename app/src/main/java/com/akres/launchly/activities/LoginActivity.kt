@@ -13,17 +13,15 @@ import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okio.IOException
-import java.util.Locale
 import java.net.URLDecoder
+import java.util.Locale
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-
-
-
 
 class LoginActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var cookieManager: CookieManager
+
     @Volatile private var handled = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,7 +30,6 @@ class LoginActivity : Activity() {
         cookieManager = CookieManager.getInstance()
         setContentView(webView)
         setupWebView()
-
     }
 
     override fun onDestroy() {
@@ -53,29 +50,34 @@ class LoginActivity : Activity() {
 
         webView.settings.safeBrowsingEnabled = false
 
-
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView, url: String) {
-                if (handled) return
-                val cookies = CookieManager.getInstance().getCookie(url) ?: return
-                val cookieMap = mutableMapOf<String, String>()
-                val matcher: Matcher = Pattern.compile("([^=]+)=([^;]*);?\\s?").matcher(cookies)
-                while (matcher.find()) {
-                    cookieMap[matcher.group(1)!!.trim()] = matcher.group(2)!!
-                }
-                val token = cookieMap[AUTH_TOKEN]
-                if (!token.isNullOrEmpty()) {
-                    handled = true
-                    webView.evaluateJavascript("(function() { var e = document.querySelector('[data-profile-identifier]'); return e ? e.innerHTML : null; })();") {
-                        val email = it?.replace("\"", "")?.trim()
-                        retrieveAc2dmToken(
-                            if (email.isNullOrEmpty() || email == "null") null else email,
-                            token
-                        )
+        webView.webViewClient =
+            object : WebViewClient() {
+                override fun onPageFinished(
+                    view: WebView,
+                    url: String,
+                ) {
+                    if (handled) return
+                    val cookies = CookieManager.getInstance().getCookie(url) ?: return
+                    val cookieMap = mutableMapOf<String, String>()
+                    val matcher: Matcher = Pattern.compile("([^=]+)=([^;]*);?\\s?").matcher(cookies)
+                    while (matcher.find()) {
+                        cookieMap[matcher.group(1)!!.trim()] = matcher.group(2)!!
+                    }
+                    val token = cookieMap[AUTH_TOKEN]
+                    if (!token.isNullOrEmpty()) {
+                        handled = true
+                        webView.evaluateJavascript(
+                            "(function() { var e = document.querySelector('[data-profile-identifier]'); return e ? e.innerHTML : null; })();",
+                        ) {
+                            val email = it?.replace("\"", "")?.trim()
+                            retrieveAc2dmToken(
+                                if (email.isNullOrEmpty() || email == "null") null else email,
+                                token,
+                            )
+                        }
                     }
                 }
             }
-        }
 
         webView.apply {
             settings.apply {
@@ -89,7 +91,10 @@ class LoginActivity : Activity() {
         }
     }
 
-    private fun retrieveAc2dmToken(email: String?, oAuthToken: String?) {
+    private fun retrieveAc2dmToken(
+        email: String?,
+        oAuthToken: String?,
+    ) {
         if (email == null || oAuthToken == null) {
             Toast.makeText(this, "Sign in failed: no email or token", Toast.LENGTH_LONG).show()
             setResult(-3)
@@ -100,11 +105,12 @@ class LoginActivity : Activity() {
             val (result, error) = getAC2DMResponse(email, oAuthToken)
             runOnUiThread {
                 if (result.isNotEmpty() && result["Token"] != null) {
-                    val intent = Intent().apply {
-                        putExtra("accountName", result["firstName"].orEmpty() + " " + result["lastName"].orEmpty())
-                        putExtra("accountEmail", result["Email"] ?: email)
-                        putExtra("accountToken", result["Token"])
-                    }
+                    val intent =
+                        Intent().apply {
+                            putExtra("accountName", result["firstName"].orEmpty() + " " + result["lastName"].orEmpty())
+                            putExtra("accountEmail", result["Email"] ?: email)
+                            putExtra("accountToken", result["Token"])
+                        }
                     setResult(RESULT_OK, intent)
                 } else {
                     Toast.makeText(this, "Sign in failed: $error", Toast.LENGTH_LONG).show()
@@ -115,31 +121,43 @@ class LoginActivity : Activity() {
         }.start()
     }
 
-    private fun getAC2DMResponse(email: String, oAuthToken: String): Pair<Map<String, String>, String> {
-        val token = try { URLDecoder.decode(oAuthToken, "UTF-8") } catch (e: Exception) { oAuthToken }
+    private fun getAC2DMResponse(
+        email: String,
+        oAuthToken: String,
+    ): Pair<Map<String, String>, String> {
+        val token =
+            try {
+                URLDecoder.decode(oAuthToken, "UTF-8")
+            } catch (e: Exception) {
+                oAuthToken
+            }
 
-        val body = FormBody.Builder()
-            .add("lang", Locale.getDefault().toString().replace("_", "-"))
-            .add("google_play_services_version", PLAY_SERVICES_VERSION_CODE.toString())
-            .add("sdk_version", BUILD_VERSION_SDK.toString())
-            .add("device_country", Locale.getDefault().country.lowercase(Locale.US))
-            .add("Email", email)
-            .add("service", "ac2dm")
-            .add("get_accountid", "1")
-            .add("ACCESS_TOKEN", "1")
-            .add("callerPkg", "com.google.android.gms")
-            .add("add_account", "1")
-            .add("Token", token)
-            .add("callerSig", "38918a453d07199354f8b19af05ec6562ced5788")
-            .add("droidguard_results", "null")
-            .build()
+        val body =
+            FormBody
+                .Builder()
+                .add("lang", Locale.getDefault().toString().replace("_", "-"))
+                .add("google_play_services_version", PLAY_SERVICES_VERSION_CODE.toString())
+                .add("sdk_version", BUILD_VERSION_SDK.toString())
+                .add("device_country", Locale.getDefault().country.lowercase(Locale.US))
+                .add("Email", email)
+                .add("service", "ac2dm")
+                .add("get_accountid", "1")
+                .add("ACCESS_TOKEN", "1")
+                .add("callerPkg", "com.google.android.gms")
+                .add("add_account", "1")
+                .add("Token", token)
+                .add("callerSig", "38918a453d07199354f8b19af05ec6562ced5788")
+                .add("droidguard_results", "null")
+                .build()
 
-        val request = Request.Builder()
-            .url(TOKEN_AUTH_URL)
-            .post(body)
-            .addHeader("app", "com.google.android.gms")
-            .addHeader("User-Agent", "GoogleAuth/1.4")
-            .build()
+        val request =
+            Request
+                .Builder()
+                .url(TOKEN_AUTH_URL)
+                .post(body)
+                .addHeader("app", "com.google.android.gms")
+                .addHeader("User-Agent", "GoogleAuth/1.4")
+                .build()
 
         return try {
             OkHttpClient().newCall(request).execute().use { response ->
