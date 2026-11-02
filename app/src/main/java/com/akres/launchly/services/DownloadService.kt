@@ -74,10 +74,6 @@ object DownloadNotifications {
     }
 }
 
-/**
- * Foreground service whose only job is to keep the process (and the network) alive
- * while versions are being downloaded, so Android doesn't kill the app in the background.
- */
 class DownloadService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
 
@@ -103,7 +99,6 @@ class DownloadService : Service() {
         return START_NOT_STICKY
     }
 
-    // Android 15 limits dataSync services to ~6h per day; stop cleanly instead of crashing.
     override fun onTimeout(
         startId: Int,
         fgsType: Int,

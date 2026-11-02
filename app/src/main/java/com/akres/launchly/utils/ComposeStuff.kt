@@ -45,6 +45,7 @@ fun ActionButton(
     backgroundColor: Color,
     onClick: () -> Unit,
     loading: Boolean = false,
+    enabled: Boolean = true,
     content: @Composable () -> Unit = {},
 ) {
     Box(
@@ -52,7 +53,7 @@ fun ActionButton(
             modifier
                 .clip(MaterialTheme.shapes.medium)
                 .background(backgroundColor)
-                .clickable {
+                .clickable(enabled = enabled) {
                     if (!loading) onClick()
                 },
     ) {

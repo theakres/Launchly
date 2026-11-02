@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">Launchly</string>
-    <!-- Onboarding -->
+
     <string name="onboarding_title_1">Welcome to Launchly</string>
     <string name="onboarding_description_1">A legal Minecraft Pocket Edition version switcher</string>
     <string name="onboarding_title_2">Sign in with Google</string>

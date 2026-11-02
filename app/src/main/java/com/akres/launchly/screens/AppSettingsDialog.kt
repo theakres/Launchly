@@ -64,20 +64,10 @@ fun AppSettingsDialog(
     val isSystemDarkTheme = isSystemInDarkTheme()
     val isDarkTheme = remember { mutableStateOf(uiPrefs.getBoolean("dark_theme", isSystemDarkTheme)) }
     val isDynamicColor = remember { mutableStateOf(uiPrefs.getBoolean("dynamic_color", true)) }
-    val isFullscreenVersionSelector = remember { mutableStateOf(uiPrefs.getBoolean("fullscreen_version_selector", false)) }
-    val versionSelectorHeight = remember { mutableIntStateOf(uiPrefs.getInt("version_selector_height", 250)) }
 
     val versionListPrefs = context.getSharedPreferences("version_list_prefs", Context.MODE_PRIVATE)
     val showVersionCode = remember { mutableStateOf(versionListPrefs.getBoolean("show_version_code", true)) }
     val showDividers = remember { mutableStateOf(versionListPrefs.getBoolean("show_dividers", true)) }
-
-    val showInputDialog = remember { mutableStateOf(false) }
-    val inputDialogTitle = remember { mutableStateOf("") }
-    val inputDialogLabel = remember { mutableStateOf("") }
-    val inputDialogInitialValue = remember { mutableStateOf("") }
-    val inputDialogFilters = remember { mutableStateOf(Regex("")) }
-    val inputDialogKeyboardOptions = remember { mutableStateOf(KeyboardOptions.Default) }
-    val inputDialogOnDismissRequest: MutableState<(String) -> Unit> = remember { mutableStateOf({}) }
 
     LaunchedEffect(showDialog) {
         if (showDialog) showAnimatedDialog = true
@@ -142,34 +132,6 @@ fun AppSettingsDialog(
                                     uiPrefs.edit().putBoolean("dynamic_color", it).apply()
                                 },
                             )
-                            Option(
-                                title = "Fullscreen Version Selector",
-                                description = "Show version selector in fullscreen",
-                                state = isFullscreenVersionSelector.value,
-                                onCheckedChange = {
-                                    isFullscreenVersionSelector.value = it
-                                    uiPrefs.edit().putBoolean("fullscreen_version_selector", it).apply()
-                                },
-                            )
-                            if (!isFullscreenVersionSelector.value) {
-                                Option(
-                                    title = "Version Selector Height",
-                                    description = "${versionSelectorHeight.intValue} dp",
-                                    modifier =
-                                        Modifier.clickable {
-                                            inputDialogTitle.value = "Version Selector Height"
-                                            inputDialogLabel.value = "Height (dp)"
-                                            inputDialogInitialValue.value = versionSelectorHeight.intValue.toString()
-                                            inputDialogFilters.value = Regex("[0-9]{1,4}")
-                                            inputDialogKeyboardOptions.value = KeyboardOptions(keyboardType = KeyboardType.Number)
-                                            inputDialogOnDismissRequest.value = {
-                                                versionSelectorHeight.intValue = it.toInt()
-                                                uiPrefs.edit().putInt("version_selector_height", it.toInt()).apply()
-                                            }
-                                            showInputDialog.value = true
-                                        },
-                                )
-                            }
                             Text(
                                 "Version List",
                                 style = MaterialTheme.typography.bodyMedium,
@@ -197,18 +159,6 @@ fun AppSettingsDialog(
                         }
                     }
                 }
-                InputDialog(
-                    showDialog = showInputDialog.value,
-                    title = inputDialogTitle.value,
-                    label = inputDialogLabel.value,
-                    initialValue = inputDialogInitialValue.value,
-                    filters = inputDialogFilters.value,
-                    keyboardOptions = inputDialogKeyboardOptions.value,
-                    onDismissRequest = {
-                        inputDialogOnDismissRequest.value(it)
-                        showInputDialog.value = false
-                    },
-                )
             }
             DisposableEffect(Unit) {
                 onDispose {

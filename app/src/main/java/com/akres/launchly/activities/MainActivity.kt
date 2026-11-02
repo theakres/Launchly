@@ -12,22 +12,25 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -87,11 +90,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.wear.compose.material.ExperimentalWearMaterialApi
-import androidx.wear.compose.material.FractionalThreshold
-import androidx.wear.compose.material.SwipeableState
-import androidx.wear.compose.material.rememberSwipeableState
-import androidx.wear.compose.material.swipeable
 import com.akres.launchly.broadcast_receivers.PackageStatusReceiver
 import com.akres.launchly.screens.ConfirmationDialog
 import com.akres.launchly.screens.Onboarding
@@ -99,6 +97,7 @@ import com.akres.launchly.screens.SettingsDialog
 import com.akres.launchly.screens.VersionSelector
 import com.akres.launchly.ui.theme.LaunchlyTheme
 import com.akres.launchly.utils.ActionButton
+import com.akres.launchly.utils.Architecture
 import com.akres.launchly.utils.Category
 import com.akres.launchly.utils.DownloadInfo
 import com.akres.launchly.utils.DownloadTracker
@@ -149,7 +148,7 @@ class MainActivity : ComponentActivity() {
             .withContext(this)
             .build()
             .setup()
-        // Leftovers of interrupted downloads; never touch them while a download is still running
+
         if (!DownloadTracker.hasActive()) {
             filesDir.walk().forEach {
                 if (it.isFile && it.name.endsWith(".temp")) {
@@ -221,8 +220,18 @@ fun Main(navHostController: NavHostController) {
     val downloadedVersions = versionDbViewModel.downloadedVersions
     val showVersionSelector = remember { mutableStateOf(false) }
     val showSettings = remember { mutableStateOf(false) }
+    val selectedIds = remember { mutableStateListOf<String>() }
+    val removingIds = remember { mutableStateListOf<String>() }
+    val showDeleteConfirm = remember { mutableStateOf(false) }
+    val selectionMode = selectedIds.isNotEmpty()
 
-    val versionsViewModels = remember { Build.SUPPORTED_ABIS.map { VersionsViewModel(it) } }
+    BackHandler(enabled = selectionMode) { selectedIds.clear() }
+
+    val versionsViewModels = remember {
+        Build.SUPPORTED_ABIS
+            .filter { Architecture.fromString(it) != Architecture.UNKNOWN }
+            .map { VersionsViewModel(it) }
+    }
     var userProfileInfo by remember { mutableStateOf(listOf<String?>()) }
 
     LaunchedEffect(Unit) {
@@ -231,19 +240,34 @@ fun Main(navHostController: NavHostController) {
 
     Scaffold(
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                { Text("Add Version") },
-                { Icon(Icons.Default.Add, "Add") },
-                { showVersionSelector.value = true },
-            )
+            if (!selectionMode) {
+                ExtendedFloatingActionButton(
+                    { Text("Add Version") },
+                    { Icon(Icons.Default.Add, "Add") },
+                    { showVersionSelector.value = true },
+                )
+            }
         },
         topBar = {
             TopAppBar(
-                title = { Text("Launchly") },
+                title = { Text(if (selectionMode) "${selectedIds.size} selected" else "Launchly") },
+                navigationIcon = {
+                    if (selectionMode) {
+                        IconButton(onClick = { selectedIds.clear() }) {
+                            Icon(Icons.Default.Close, "Cancel selection")
+                        }
+                    }
+                },
                 actions = {
-                    IconButton(onClick = {
-                        showSettings.value = true
-                    }) { Icon(Icons.Default.Settings, "Settings") }
+                    if (selectionMode) {
+                        IconButton(onClick = { showDeleteConfirm.value = true }) {
+                            Icon(Icons.Default.Delete, "Delete")
+                        }
+                    } else {
+                        IconButton(onClick = {
+                            showSettings.value = true
+                        }) { Icon(Icons.Default.Settings, "Settings") }
+                    }
                 },
             )
         },
@@ -262,7 +286,13 @@ fun Main(navHostController: NavHostController) {
                     isRefreshing = false
                 }
             },
+            selectedIds = selectedIds,
+            removingIds = removingIds,
+            onToggleSelect = { id ->
+                if (id in selectedIds) selectedIds.remove(id) else selectedIds.add(id)
+            },
             onRemoveVersion = {
+                removingIds.remove(it)
                 DownloadTracker.cancel(context, it)
                 versionDbHelper.removeVersion(it)
                 val fileToDelete = File(context.filesDir, "versions/$it/")
@@ -295,6 +325,23 @@ fun Main(navHostController: NavHostController) {
                 }
             },
         )
+        ConfirmationDialog(
+            title = if (selectedIds.size > 1) "Remove versions" else "Remove version",
+            description =
+                if (selectedIds.size > 1) {
+                    "Are you sure you want to remove ${selectedIds.size} versions?"
+                } else {
+                    "Are you sure you want to remove this version?"
+                },
+            onConfirmation = {
+                removingIds.addAll(selectedIds.filter { it !in removingIds })
+                selectedIds.clear()
+                showDeleteConfirm.value = false
+            },
+            showDialog = showDeleteConfirm.value,
+            onDismiss = { showDeleteConfirm.value = false },
+            confirmText = "Remove",
+        )
         SettingsDialog(
             showDialog = showSettings.value,
             navHostController = navHostController,
@@ -313,6 +360,9 @@ fun DownloadedVersions(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onRemoveVersion: (String) -> Unit,
+    selectedIds: List<String>,
+    removingIds: List<String>,
+    onToggleSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val versionDbViewModel: VersionDatabaseViewModel = viewModel()
@@ -365,7 +415,15 @@ fun DownloadedVersions(
     ) {
         LazyColumn(Modifier.fillMaxSize()) {
             items(items.reversed(), key = { it.installationId }) {
-                VersionItem(it, onRemoveVersion, isUpdating = isUpdating) { status ->
+                VersionItem(
+                    it,
+                    onRemoveVersion,
+                    isUpdating = isUpdating,
+                    selected = it.installationId in selectedIds,
+                    selectionMode = selectedIds.isNotEmpty(),
+                    isRemoving = it.installationId in removingIds,
+                    onToggleSelect = { onToggleSelect(it.installationId) },
+                ) { status ->
                     if (status == Status.INSTALLED) {
                         items.forEach { version ->
                             if (version.installationId != it.installationId && version.status == Status.INSTALLED) {
@@ -404,16 +462,18 @@ fun VersionItem(
     isLaunchly: Boolean = true,
     packageName: String = "com.mojang.minecraftpe",
     isUpdating: MutableState<Boolean> = mutableStateOf(false),
+    selected: Boolean = false,
+    selectionMode: Boolean = false,
+    isRemoving: Boolean = false,
+    onToggleSelect: () -> Unit = {},
     updateStatus: (Status) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val isRemoving = remember { mutableStateOf(false) }
-    val attemptRemove = remember { mutableStateOf(false) }
     val downloadId = savedVersionData.installationId
     val downloadInfo = DownloadTracker.info[downloadId]
     LaunchedEffect(downloadId) {
-        // Status says "downloading" but nothing is running (e.g. the process was killed) -> reset
+
         if (isLaunchly && savedVersionData.status == Status.DOWNLOADING && !DownloadTracker.isActive(downloadId)) {
             updateStatus(Status.NOT_DOWNLOADED)
         }
@@ -421,36 +481,21 @@ fun VersionItem(
     val installProgress = remember { mutableIntStateOf(-1) }
     val isLoading = remember { mutableStateOf(false) }
     val animatedAlpha by animateFloatAsState(
-        targetValue = if (isRemoving.value) 0f else 1f,
+        targetValue = if (isRemoving) 0f else 1f,
         label = "alpha",
         finishedListener = {
-            if (isRemoving.value) {
-                isRemoving.value = false
-                onRemoveVersion(savedVersionData.installationId)
-            }
+            if (isRemoving) onRemoveVersion(savedVersionData.installationId)
         },
-    )
-
-    ConfirmationDialog(
-        title = "Remove version",
-        description = "Are you sure you want to remove this version?",
-        onConfirmation = {
-            isRemoving.value = true
-            attemptRemove.value = false
-        },
-        showDialog = attemptRemove.value,
-        onDismiss = {
-            attemptRemove.value = false
-        },
-        confirmText = "Remove",
     )
 
     VersionItemLayout(
         savedVersionData = savedVersionData,
         isLaunchly = isLaunchly,
         animatedAlpha = animatedAlpha,
-        onRemoveVersion = onRemoveVersion,
-        isRemoving = isRemoving.value,
+        isRemoving = isRemoving,
+        selected = selected,
+        selectionMode = selectionMode,
+        onToggleSelect = onToggleSelect,
         downloadInfo = downloadInfo,
         installProgress = installProgress.intValue,
         isLoading = isLoading.value,
@@ -463,7 +508,6 @@ fun VersionItem(
                         savedVersionData,
                         context,
                         installProgress,
-                        attemptRemove,
                         isLoading,
                         packageName,
                         isUpdating,
@@ -476,88 +520,66 @@ fun VersionItem(
     )
 }
 
-@OptIn(ExperimentalWearMaterialApi::class)
 @Composable
 fun VersionItemLayout(
     savedVersionData: SavedVersionData,
     isLaunchly: Boolean,
     animatedAlpha: Float,
-    onRemoveVersion: (String) -> Unit,
     isRemoving: Boolean,
+    selected: Boolean,
+    selectionMode: Boolean,
+    onToggleSelect: () -> Unit,
     downloadInfo: DownloadInfo?,
     isLoading: Boolean,
     installProgress: Int,
     packageName: String,
     onVersionAction: (VersionAction) -> Unit,
 ) {
-    val layoutMaxWidth = remember { mutableStateOf(0.dp) }
-    BoxWithConstraints { layoutMaxWidth.value = maxWidth }
     val context = LocalContext.current
-    val maxWidth = 100
-    val swipeableState = rememberSwipeableState(initialValue = 0)
-    val scope = rememberCoroutineScope()
-    val isInstalled = savedVersionData.status == Status.INSTALLED
+    val currentSelectionMode by rememberUpdatedState(selectionMode)
+    val currentToggle by rememberUpdatedState(onToggleSelect)
     val isDownloading = savedVersionData.status == Status.DOWNLOADING
-    val density: Density = LocalDensity.current
+    val cardColor by animateColorAsState(
+        targetValue =
+            if (selected) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            },
+        label = "cardColor",
+    )
 
     Box(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .layout { measurable, constraints ->
-                    // shrink the card while it is being removed
+
                     val placeable = measurable.measure(constraints)
                     val scale = if (isRemoving) animatedAlpha else 1f
                     layout(placeable.width, (placeable.height * scale).roundToInt()) {
                         placeable.placeRelative(0, 0)
                     }
-                }.height(IntrinsicSize.Min)
-                .alpha(if (isRemoving) animatedAlpha else 1f)
-                .swipeable(
-                    state = swipeableState,
-                    anchors = mapOf(0f to 0, -maxWidth.toFloat() to 1),
-                    thresholds = { _, _ -> FractionalThreshold(0.3f) },
-                    orientation = Orientation.Horizontal,
-                ).padding(8.dp),
+                }.alpha(if (isRemoving) animatedAlpha else 1f)
+                .padding(8.dp),
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxHeight()
-                    .width(with(density) { maxWidth.toDp() - 10.dp })
-                    .align(Alignment.CenterEnd)
-                    .offset {
-                        val offsetX = (swipeableState.offset.value + maxWidth) * 1.5
-                        IntOffset(offsetX.roundToInt(), 0)
-                    }.clip(MaterialTheme.shapes.medium),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            val actionModifier =
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-            ActionButton(actionModifier, if (isInstalled) Icons.Default.Delete else Icons.Default.Close, Color.Red, {
-                scope.launch {
-                    swipeableState.animateTo(0)
-                    if (isLaunchly) {
-                        onVersionAction(VersionAction.Remove)
-                    } else {
-                        onRemoveVersion(savedVersionData.installationId)
-                    }
-                }
-            })
-        }
-
         Box(
             Modifier
-                .offset { IntOffset(swipeableState.offset.value.roundToInt(), 0) }
+                .fillMaxWidth()
                 .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                .background(cardColor)
+
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { if (currentSelectionMode) currentToggle() },
+                        onLongPress = { currentToggle() },
+                    )
+                },
         ) {
             Row(
                 modifier =
                     Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
                         .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -573,9 +595,9 @@ fun VersionItemLayout(
                         style = MaterialTheme.typography.titleLarge,
                     )
                     Info("Code: ${savedVersionData.versionCode}")
-                    Info("Architecture: ${savedVersionData.architecture}")
+                    Info("Architecture: ${savedVersionData.architecture.arch}")
                     if (savedVersionData.patches.isNotEmpty()) Info("Patches: ${savedVersionData.patches.joinToString()}")
-                    // keep showing the last known numbers while the block fades out
+
                     val lastInfo = remember { mutableStateOf(DownloadInfo()) }
                     if (downloadInfo != null) lastInfo.value = downloadInfo
                     val reveal by animateFloatAsState(
@@ -621,11 +643,22 @@ fun VersionItemLayout(
                         .size(48.dp)
                         .aspectRatio(1f),
                     isLoading,
-                    scope,
-                    swipeableState,
+                    !selectionMode,
                     context,
                     packageName,
                     onVersionAction,
+                )
+            }
+            if (selected) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(10.dp)
+                            .size(20.dp),
                 )
             }
         }
@@ -633,13 +666,11 @@ fun VersionItemLayout(
 }
 
 @Composable
-@OptIn(ExperimentalWearMaterialApi::class)
 private fun GetActionButton(
     savedVersionData: SavedVersionData,
     buttonModifier: Modifier,
     isLoading: Boolean,
-    scope: CoroutineScope,
-    swipeableState: SwipeableState<Int>,
+    enabled: Boolean,
     context: Context,
     packageName: String,
     onVersionAction: (VersionAction) -> Unit,
@@ -651,8 +682,8 @@ private fun GetActionButton(
                 backgroundColor = MaterialTheme.colorScheme.primary,
                 modifier = buttonModifier,
                 loading = isLoading,
+                enabled = enabled,
                 onClick = {
-                    scope.launch { swipeableState.animateTo(0) }
                     context.startActivity(
                         context.packageManager.getLaunchIntentForPackage(
                             packageName,
@@ -668,10 +699,8 @@ private fun GetActionButton(
                 backgroundColor = MaterialTheme.colorScheme.primary,
                 modifier = buttonModifier,
                 loading = isLoading,
-                onClick = {
-                    scope.launch { swipeableState.animateTo(0) }
-                    onVersionAction(VersionAction.Install)
-                },
+                enabled = enabled,
+                onClick = { onVersionAction(VersionAction.Install) },
             )
         }
 
@@ -681,12 +710,8 @@ private fun GetActionButton(
                 backgroundColor = MaterialTheme.colorScheme.primary,
                 modifier = buttonModifier,
                 loading = isLoading,
-                onClick = {
-                    scope.launch {
-                        swipeableState.animateTo(0)
-                        onVersionAction(VersionAction.StartDownload)
-                    }
-                },
+                enabled = enabled,
+                onClick = { onVersionAction(VersionAction.StartDownload) },
             )
         }
 
@@ -697,12 +722,8 @@ private fun GetActionButton(
                 backgroundColor = MaterialTheme.colorScheme.inversePrimary,
                 modifier = buttonModifier,
                 loading = isLoading,
-                onClick = {
-                    scope.launch {
-                        swipeableState.animateTo(0)
-                        expanded.value = true
-                    }
-                },
+                enabled = enabled,
+                onClick = { expanded.value = true },
             ) {
                 DropDown(
                     menu =
@@ -721,7 +742,6 @@ suspend fun handleVersionAction(
     savedVersionData: SavedVersionData,
     context: Context,
     installProgress: MutableIntState,
-    attemptRemove: MutableState<Boolean>,
     isLoading: MutableState<Boolean>,
     packageName: String,
     isUpdating: MutableState<Boolean>,
@@ -843,32 +863,6 @@ suspend fun handleVersionAction(
                 }
             }
         }
-
-        is VersionAction.Remove -> {
-            if (savedVersionData.status == Status.INSTALLED) {
-                println("Uninstalling $packageName")
-                isLoading.value = true
-                uninstallApp(context, packageName) { status ->
-                    when (status) {
-                        is SessionResult.OnSuccess -> {
-                            println("Successfully uninstalled $packageName")
-                            isLoading.value = false
-                            updateStatus(Status.NOT_INSTALLED)
-                        }
-
-                        is SessionResult.OnFailure -> {
-                            println("Failed to uninstall $packageName: ${status.message}")
-                            isLoading.value = false
-                        }
-
-                        else -> { }
-                    }
-                }
-            } else {
-                println("Removing ${savedVersionData.name}")
-                attemptRemove.value = true
-            }
-        }
     }
 }
 
@@ -878,6 +872,4 @@ sealed class VersionAction {
     data object CancelDownload : VersionAction()
 
     data object Install : VersionAction()
-
-    data object Remove : VersionAction()
 }

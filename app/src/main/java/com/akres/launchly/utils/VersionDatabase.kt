@@ -38,8 +38,6 @@ enum class Architecture(
 ) {
     ARM64("arm64-v8a"),
     ARM("armeabi-v7a"),
-    X86("x86"),
-    X86_64("x86_64"),
     UNKNOWN("unknown"),
     ;
 
@@ -118,7 +116,10 @@ class VersionDatabaseHelper(
                             name = cursor.getString(cursor.getColumnIndexOrThrow("name")),
                             versionCode = cursor.getString(cursor.getColumnIndexOrThrow("versionCode")),
                             versionName = cursor.getString(cursor.getColumnIndexOrThrow("versionName")),
-                            architecture = Architecture.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("architecture"))),
+                            architecture =
+                                runCatching {
+                                    Architecture.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("architecture")))
+                                }.getOrDefault(Architecture.UNKNOWN),
                             status = Status.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("status"))),
                             patches =
                                 cursor

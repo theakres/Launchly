@@ -70,9 +70,6 @@ fun VersionSelector(
     var showAnimatedDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
-    val uiPrefs = context.getSharedPreferences("ui_prefs", Context.MODE_PRIVATE)
-    val fullScreen = uiPrefs.getBoolean("fullscreen_version_selector", false)
-    val versionSelectorHeight = (uiPrefs.getInt("version_selector_height", 250))
 
     val versionListPrefs = context.getSharedPreferences("version_list_prefs", Context.MODE_PRIVATE)
     val showVersionCode = versionListPrefs.getBoolean("show_version_code", true)
@@ -91,7 +88,7 @@ fun VersionSelector(
             onConfirmation(emptyList())
             animateIn = false
         },
-        properties = DialogProperties(usePlatformDefaultWidth = !fullScreen),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         LaunchedEffect(Unit) {
             animateIn = true
@@ -143,17 +140,9 @@ fun VersionSelector(
                         }
                     }
                     Box(
-                        Modifier.then(
-                            if (fullScreen) {
-                                Modifier
-                                    .fillMaxSize()
-                                    .weight(1f)
-                            } else {
-                                Modifier.height(
-                                    versionSelectorHeight.dp,
-                                )
-                            },
-                        ),
+                        Modifier
+                            .fillMaxSize()
+                            .weight(1f),
                     ) {
                         val viewModel = versionsViewModels[selectedArch.ordinal]
                         val versionData by viewModel.versionData.collectAsState()
@@ -196,13 +185,13 @@ fun VersionSelector(
                     }
                     TextButton(
                         onClick = {
-                            // keep the order in which versions appear in the lists
+
                             val ordered =
                                 versionsViewModels.flatMap { vm -> vm.versionData.value.filter { it in selectedVersions } }
                             onConfirmation(ordered)
                             selectedArch = Architecture.ARM64
                             selectedVersions.clear()
-                                            searchQuery = ""
+                            searchQuery = ""
                             animateIn = false
                         },
                         modifier =

@@ -17,7 +17,7 @@ class Downloader(
     sealed class DownloadStatus {
         data class OnProgress(
             val downloadedSize: Long,
-            val speed: Float, // bytes per second
+            val speed: Float,
         ) : DownloadStatus()
 
         data class OnFinish(
@@ -76,7 +76,7 @@ class Downloader(
                                         val currentTime = System.currentTimeMillis()
                                         val elapsed = currentTime - lastStatus
                                         if (elapsed >= 1000) {
-                                            // bytes per second, smoothed so the number doesn't jump around
+
                                             val instant = (total - lastDownloadedSize) * 1000f / elapsed
                                             speed = if (speed == 0f) instant else speed * 0.5f + instant * 0.5f
                                             lastStatus = currentTime
@@ -166,7 +166,7 @@ class Downloader(
             }
             onStatus(DownloadStatus.OnDownloadSuccess(task.file.name))
         } catch (e: Exception) {
-            // closing/cancelling mid-read throws IOException; that's a cancel, not a failure
+
             val reason = if (task.isCancelled) "cancelled" else e.message ?: "Unknown error"
             onStatus(DownloadStatus.OnFailure(task.file.name, reason))
         }

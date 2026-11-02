@@ -11,17 +11,12 @@ import java.util.concurrent.ConcurrentHashMap
 data class DownloadInfo(
     val downloaded: Long = 0L,
     val total: Long = 0L,
-    val speed: Float = 0f, // bytes per second
+    val speed: Float = 0f,
 ) {
     val fraction: Float get() = if (total > 0) (downloaded.toFloat() / total).coerceIn(0f, 1f) else 0f
     val etaSeconds: Long get() = if (speed > 1f) ((total - downloaded) / speed).toLong().coerceAtLeast(0) else -1L
 }
 
-/**
- * Process-wide holder of everything about running downloads. It lives outside of the UI,
- * so progress survives activity recreation, and it keeps [DownloadService] running
- * (foreground service) for as long as at least one download is active.
- */
 object DownloadTracker {
     val info = mutableStateMapOf<String, DownloadInfo>()
 
@@ -70,7 +65,6 @@ object DownloadTracker {
         notifyProgress(context.applicationContext, force = false)
     }
 
-    /** Stops a download (if any) and forgets about it, e.g. when its version is removed. */
     fun cancel(
         context: Context,
         id: String,
