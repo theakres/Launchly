@@ -15,7 +15,6 @@ import java.io.Serializable
 data class VersionData(
     val code: Long,
     val name: String,
-    val type: VersionType,
     val architecture: Architecture,
 ) : Serializable
 
@@ -78,27 +77,12 @@ class VersionsViewModel(
             .removeSurrounding("[[", "]]")
             .split("],[")
             .map {
-                val (versionCode, versionName, versionType) =
+                val (versionCode, versionName, channel) =
                     it
                         .split(",")
                         .map { part -> part.trim('"') }
-                VersionData(versionCode.toLong(), versionName, VersionType.entries[versionType.toInt()], Architecture.fromString(arch))
-            }.filter { it.code >= 871000500 }
+                Triple(versionCode.toLong(), versionName, channel.toInt())
+            }.filter { (code, _, type) -> type == 0 && code >= 871000500 }
+            .map { (code, name, _) -> VersionData(code, name, Architecture.fromString(arch)) }
             .reversed()
-}
-
-fun getVersionTypeByCode(
-    versionCode: Long,
-    versionsViewModels: List<VersionsViewModel>,
-): VersionType {
-    versionsViewModels.iterator().forEach {
-        val type: VersionType? =
-            it.versionData.value
-                .find { v -> v.code == versionCode }
-                ?.type
-        if (type != null) {
-            return type
-        }
-    }
-    return VersionType.UNKNOWN
 }

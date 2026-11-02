@@ -69,9 +69,7 @@ fun AppSettingsDialog(
 
     val versionListPrefs = context.getSharedPreferences("version_list_prefs", Context.MODE_PRIVATE)
     val showVersionCode = remember { mutableStateOf(versionListPrefs.getBoolean("show_version_code", true)) }
-    val showVersionType = remember { mutableStateOf(versionListPrefs.getBoolean("show_version_type", false)) }
     val showDividers = remember { mutableStateOf(versionListPrefs.getBoolean("show_dividers", true)) }
-    val combineVersions = remember { mutableStateOf(versionListPrefs.getBoolean("combine_versions", false)) }
 
     val showInputDialog = remember { mutableStateOf(false) }
     val inputDialogTitle = remember { mutableStateOf("") }
@@ -188,30 +186,12 @@ fun AppSettingsDialog(
                                 },
                             )
                             Option(
-                                title = "Show Version Type",
-                                description = "Show version type in version list",
-                                state = showVersionType.value,
-                                onCheckedChange = {
-                                    showVersionType.value = it
-                                    versionListPrefs.edit().putBoolean("show_version_type", it).apply()
-                                },
-                            )
-                            Option(
                                 title = "Show Dividers",
                                 description = "Show dividers between versions",
                                 state = showDividers.value,
                                 onCheckedChange = {
                                     showDividers.value = it
                                     versionListPrefs.edit().putBoolean("show_dividers", it).apply()
-                                },
-                            )
-                            Option(
-                                title = "Combine Versions",
-                                description = "Combine versions with the same name",
-                                state = combineVersions.value,
-                                onCheckedChange = {
-                                    combineVersions.value = it
-                                    versionListPrefs.edit().putBoolean("combine_versions", it).apply()
                                 },
                             )
                         }

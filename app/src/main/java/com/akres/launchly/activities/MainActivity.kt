@@ -110,13 +110,11 @@ import com.akres.launchly.utils.SessionResult
 import com.akres.launchly.utils.Status
 import com.akres.launchly.utils.VersionDatabaseHelper
 import com.akres.launchly.utils.VersionDatabaseViewModel
-import com.akres.launchly.utils.VersionType
 import com.akres.launchly.utils.VersionsViewModel
 import com.akres.launchly.utils.f
 import com.akres.launchly.utils.getPackageArch
 import com.akres.launchly.utils.getPackageInfo
 import com.akres.launchly.utils.getPackageInstallSource
-import com.akres.launchly.utils.getVersionTypeByCode
 import com.akres.launchly.utils.installPackage
 import com.akres.launchly.utils.saveIconToFile
 import com.akres.launchly.utils.uninstallApp
@@ -279,7 +277,6 @@ fun Main(navHostController: NavHostController) {
                             "Minecraft ${version.name}",
                             version.code.toString(),
                             version.name,
-                            version.type,
                             version.architecture,
                             Status.NOT_DOWNLOADED,
                             listOf(),
@@ -321,13 +318,9 @@ fun Main(navHostController: NavHostController) {
 private fun loadExternalApps(context: Context): List<Pair<SavedVersionData, String>> {
     val packageManager = context.packageManager
     val externalApps = mutableListOf<Pair<SavedVersionData, String>>()
-    val versionsViewModels = Build.SUPPORTED_ABIS.map { VersionsViewModel(it) }
-    val appPackages =
-        listOf(
-            "com.mojang.minecraftpe" to VersionType.UNKNOWN,
-        )
+    val appPackages = listOf("com.mojang.minecraftpe")
 
-    for ((packageName, versionType) in appPackages) {
+    for (packageName in appPackages) {
         try {
             val packageInfo = getPackageInfo(context, packageName)
             if (getPackageInstallSource(context, packageName) == context.packageName) continue
@@ -343,9 +336,6 @@ private fun loadExternalApps(context: Context): List<Pair<SavedVersionData, Stri
                     installationId = packageInfo.applicationInfo?.loadLabel(packageManager).toString(),
                     versionCode = versionCode.toString(),
                     versionName = packageInfo.versionName ?: "Unknown",
-                    versionType =
-                        versionType.takeIf { it != VersionType.UNKNOWN }
-                            ?: getVersionTypeByCode(versionCode, versionsViewModels),
                     architecture = getPackageArch(packageInfo),
                     status = Status.INSTALLED,
                     patches = emptyList(),
@@ -711,7 +701,7 @@ fun VersionItemLayout(
                 ) {
                     Text(savedVersionData.name, style = MaterialTheme.typography.titleLarge)
                     Info("Version: ${savedVersionData.versionName}, Code: ${savedVersionData.versionCode}")
-                    Info("Type: ${savedVersionData.versionType}, Architecture: ${savedVersionData.architecture}")
+                    Info("Architecture: ${savedVersionData.architecture}")
                     if (savedVersionData.patches.isNotEmpty()) Info("Patches: ${savedVersionData.patches.joinToString()}")
                     if (isDownloading) {
                         Info(

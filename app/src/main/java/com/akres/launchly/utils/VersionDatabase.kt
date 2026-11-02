@@ -27,7 +27,6 @@ data class SavedVersionData(
     val name: String,
     val versionCode: String,
     val versionName: String,
-    val versionType: VersionType,
     val architecture: Architecture,
     val status: Status,
     val patches: List<String>,
@@ -50,13 +49,6 @@ enum class Architecture(
     }
 }
 
-enum class VersionType {
-    RELEASE,
-    BETA,
-    PREMIUM,
-    UNKNOWN,
-}
-
 enum class Status {
     INSTALLED,
     DOWNLOADING,
@@ -75,7 +67,6 @@ class VersionDatabaseHelper(
                 name TEXT,
                 versionCode TEXT,
                 versionName TEXT,
-                versionType TEXT,
                 architecture TEXT,
                 status TEXT,
                 patches TEXT,
@@ -103,7 +94,6 @@ class VersionDatabaseHelper(
                     put("name", savedVersionData.name)
                     put("versionCode", savedVersionData.versionCode)
                     put("versionName", savedVersionData.versionName)
-                    put("versionType", savedVersionData.versionType.name)
                     put("architecture", savedVersionData.architecture.name)
                     put("status", savedVersionData.status.name)
                     put("patches", savedVersionData.patches.joinToString(","))
@@ -131,7 +121,6 @@ class VersionDatabaseHelper(
                             name = cursor.getString(cursor.getColumnIndexOrThrow("name")),
                             versionCode = cursor.getString(cursor.getColumnIndexOrThrow("versionCode")),
                             versionName = cursor.getString(cursor.getColumnIndexOrThrow("versionName")),
-                            versionType = VersionType.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("versionType"))),
                             architecture = Architecture.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("architecture"))),
                             status = Status.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("status"))),
                             patches =
@@ -155,7 +144,6 @@ class VersionDatabaseHelper(
                     put("name", savedVersionData.name)
                     put("versionCode", savedVersionData.versionCode)
                     put("versionName", savedVersionData.versionName)
-                    put("versionType", savedVersionData.versionType.name)
                     put("architecture", savedVersionData.architecture.name)
                     put("status", savedVersionData.status.name)
                     put("patches", savedVersionData.patches.joinToString(","))

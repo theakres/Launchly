@@ -25,7 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -53,7 +52,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.akres.launchly.utils.Architecture
 import com.akres.launchly.utils.VersionData
-import com.akres.launchly.utils.VersionType
 import com.akres.launchly.utils.VersionsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,7 +65,6 @@ fun VersionSelector(
     var animateIn by remember { mutableStateOf(false) }
     var selectedArch by remember { mutableStateOf(Architecture.ARM64) }
     var selectedVersion by remember { mutableStateOf<VersionData?>(null) }
-    var type by remember { mutableStateOf(VersionType.BETA) }
     var searchQuery by remember { mutableStateOf("") }
     var showAnimatedDialog by remember { mutableStateOf(false) }
 
@@ -78,9 +75,7 @@ fun VersionSelector(
 
     val versionListPrefs = context.getSharedPreferences("version_list_prefs", Context.MODE_PRIVATE)
     val showVersionCode = versionListPrefs.getBoolean("show_version_code", true)
-    val showVersionType = versionListPrefs.getBoolean("show_version_type", false)
     val showDividers = versionListPrefs.getBoolean("show_dividers", true)
-    val combineVersions = versionListPrefs.getBoolean("combine_versions", false)
 
     LaunchedEffect(showDialog) {
         if (showDialog) showAnimatedDialog = true
@@ -91,7 +86,6 @@ fun VersionSelector(
         onDismissRequest = {
             selectedArch = Architecture.ARM64
             selectedVersion = null
-            type = VersionType.RELEASE
             searchQuery = ""
             onConfirmation(null)
             animateIn = false
@@ -137,17 +131,6 @@ fun VersionSelector(
                             modifier = Modifier.weight(1f),
                             trailingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                         )
-                        if (!combineVersions) {
-                            Row(
-                                Modifier.padding(start = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text("Beta")
-                                Checkbox(checked = type == VersionType.BETA, onCheckedChange = {
-                                    type = if (it) VersionType.BETA else VersionType.RELEASE
-                                })
-                            }
-                        }
                     }
                     TabRow(selectedTabIndex = selectedArch.ordinal) {
                         archs.forEachIndexed { index, title ->
@@ -188,14 +171,8 @@ fun VersionSelector(
                             else -> {
                                 val filteredVersions =
                                     versionData.filter {
-                                        (combineVersions || it.type == type) &&
-                                            (
-                                                it.name.contains(
-                                                    searchQuery,
-                                                    ignoreCase = true,
-                                                ) ||
-                                                    it.code.toString().contains(searchQuery)
-                                            )
+                                        it.name.contains(searchQuery, ignoreCase = true) ||
+                                            it.code.toString().contains(searchQuery)
                                     }
                                 LazyColumn {
                                     items(
@@ -207,7 +184,6 @@ fun VersionSelector(
                                             selectedVersion = selectedVersion,
                                             onClick = { selectedVersion = version },
                                             showVersionCode = showVersionCode,
-                                            showVersionType = showVersionType,
                                         )
                                         if (showDividers) HorizontalDivider()
                                     }
@@ -220,8 +196,7 @@ fun VersionSelector(
                             onConfirmation(selectedVersion)
                             selectedArch = Architecture.ARM64
                             selectedVersion = null
-                            type = VersionType.RELEASE
-                            searchQuery = ""
+                                            searchQuery = ""
                             animateIn = false
                         },
                         modifier =
@@ -248,7 +223,6 @@ fun VersionRow(
     selectedVersion: VersionData?,
     onClick: () -> Unit,
     showVersionCode: Boolean,
-    showVersionType: Boolean,
 ) {
     Row(
         Modifier
@@ -262,12 +236,6 @@ fun VersionRow(
             if (showVersionCode) {
                 Text(
                     "Version Code: ${version.code}",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            if (showVersionType) {
-                Text(
-                    "Version Type: ${if (version.type == VersionType.BETA) "Beta" else "Release"}",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
