@@ -29,7 +29,6 @@ data class SavedVersionData(
     val versionName: String,
     val architecture: Architecture,
     val status: Status,
-    val patches: List<String>,
     val dateModified: Long,
 ) : Serializable
 
@@ -66,7 +65,6 @@ class VersionDatabaseHelper(
                 versionName TEXT,
                 architecture TEXT,
                 status TEXT,
-                patches TEXT,
                 dateModified INTEGER
             )
             """.trimIndent(),
@@ -92,7 +90,6 @@ class VersionDatabaseHelper(
                     put("versionName", savedVersionData.versionName)
                     put("architecture", savedVersionData.architecture.name)
                     put("status", savedVersionData.status.name)
-                    put("patches", savedVersionData.patches.joinToString(","))
                     put("dateModified", savedVersionData.dateModified)
                 }
             db.insertWithOnConflict("versions", null, values, SQLiteDatabase.CONFLICT_REPLACE)
@@ -105,8 +102,8 @@ class VersionDatabaseHelper(
         }
     }
 
-    fun getSavedVersions(): SnapshotStateList<SavedVersionData> {
-        val savedVersions = mutableStateListOf<SavedVersionData>()
+    fun getSavedVersions(): List<SavedVersionData> {
+        val savedVersions = mutableListOf<SavedVersionData>()
         readableDatabase.use { db ->
             db.query("versions", null, null, null, null, null, null).use { cursor ->
                 while (cursor.moveToNext()) {
@@ -121,11 +118,6 @@ class VersionDatabaseHelper(
                                     Architecture.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("architecture")))
                                 }.getOrDefault(Architecture.UNKNOWN),
                             status = Status.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("status"))),
-                            patches =
-                                cursor
-                                    .getString(cursor.getColumnIndexOrThrow("patches"))
-                                    .split(",")
-                                    .filter { it.isNotEmpty() },
                             dateModified = cursor.getLong(cursor.getColumnIndexOrThrow("dateModified")),
                         ),
                     )
@@ -144,7 +136,6 @@ class VersionDatabaseHelper(
                     put("versionName", savedVersionData.versionName)
                     put("architecture", savedVersionData.architecture.name)
                     put("status", savedVersionData.status.name)
-                    put("patches", savedVersionData.patches.joinToString(","))
                     put("dateModified", savedVersionData.dateModified)
                 }
             db.update("versions", values, "id = ?", arrayOf(savedVersionData.installationId))

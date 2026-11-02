@@ -5,7 +5,6 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.webkit.CookieManager
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -44,7 +43,6 @@ class LoginActivity : Activity() {
     fun setupWebView() {
         cookieManager.apply {
             removeAllCookies(null)
-            acceptThirdPartyCookies(webView)
             setAcceptThirdPartyCookies(webView, true)
         }
 
@@ -81,11 +79,9 @@ class LoginActivity : Activity() {
 
         webView.apply {
             settings.apply {
-                allowContentAccess = true
                 databaseEnabled = true
                 domStorageEnabled = true
                 javaScriptEnabled = true
-                cacheMode = WebSettings.LOAD_DEFAULT
             }
             loadUrl(EMBEDDED_SETUP_URL)
         }

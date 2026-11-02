@@ -1,16 +1,12 @@
-@file:Suppress("unused")
-
 package com.akres.launchly.utils
 
 import android.app.ActivityManager
 import android.content.Context
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.opengl.GLES10
 import android.os.Build
 import android.text.TextUtils
 import androidx.core.content.getSystemService
-import androidx.core.content.pm.PackageInfoCompat
 import com.aurora.gplayapi.data.models.AuthData
 import com.aurora.gplayapi.helpers.AuthHelper
 import com.aurora.gplayapi.helpers.PurchaseHelper
@@ -32,6 +28,10 @@ data class ApkData(
 ) : Serializable
 
 object GPlayAPI {
+    private const val GSF_VERSION_CODE = 203019037L
+    private const val VENDING_VERSION_CODE = 82151710L
+    private const val VENDING_VERSION_STRING = "21.5.17-21 [0] [PR] 326734551"
+
     private fun getAuthData(context: Context): AuthData {
         val sharedPreferences = context.getSharedPreferences("accountData", Context.MODE_PRIVATE)
         val email = sharedPreferences.getString("accountEmail", null)
@@ -57,7 +57,7 @@ object GPlayAPI {
             val authData = getAuthData(context)
             val files =
                 PurchaseHelper(authData).purchase(
-                    "com.mojang.minecraftpe",
+                    MINECRAFT_PACKAGE,
                     versionCode,
                     0,
                 )
@@ -75,21 +75,9 @@ object GPlayAPI {
             }
         }
 
-    suspend fun getUserProfileArtwork(context: Context): String? =
-        withContext(Dispatchers.IO) {
-            try {
-                val authData = getAuthData(context)
-                val userProfile = UserProfileHelper(authData).getUserProfile()
-                userProfile?.artwork?.url
-            } catch (e: Exception) {
-                null
-            }
-        }
+    suspend fun getUserProfileArtwork(context: Context): String? = getUserProfileInfo(context).getOrNull(2)
 
-    private fun getNativeDeviceProperties(
-        context: Context,
-        isExport: Boolean = false,
-    ): Properties {
+    private fun getNativeDeviceProperties(context: Context): Properties {
         val properties =
             Properties().apply {
                 setProperty("UserReadableName", "${Build.MANUFACTURER} ${Build.MODEL}")
@@ -137,10 +125,9 @@ object GPlayAPI {
                 setProperty("GL.Version", activityManager!!.deviceConfigurationInfo.reqGlEsVersion.toString())
                 setProperty("GL.Extensions", eglExtensions.joinToString(separator = ","))
                 setProperty("Client", "android-google")
-                val gsfVersionProvider = getGsfAndVendingInfo(context, isExport)
-                setProperty("GSF.version", gsfVersionProvider["gsfVersionCode"].toString())
-                setProperty("Vending.version", gsfVersionProvider["vendingVersionCode"].toString())
-                setProperty("Vending.versionString", gsfVersionProvider["vendingVersionString"].toString())
+                setProperty("GSF.version", GSF_VERSION_CODE.toString())
+                setProperty("Vending.version", VENDING_VERSION_CODE.toString())
+                setProperty("Vending.versionString", VENDING_VERSION_STRING)
                 setProperty("Roaming", "mobile-notroaming")
                 setProperty("TimeZone", "UTC-10")
                 setProperty("CellOperator", "310")
@@ -149,7 +136,7 @@ object GPlayAPI {
                     Build.HARDWARE
                         .lowercase(
                             Locale.getDefault(),
-                        ).contains("kirin") || Build.HARDWARE.lowercase(Locale.getDefault()).contains("hi3") && !isExport
+                        ).contains("kirin") || Build.HARDWARE.lowercase(Locale.getDefault()).contains("hi3")
                 ) {
                     setProperty("Build.HARDWARE", "lynx")
                     setProperty("Build.BOOTLOADER", "lynx-1.0-9716681")
@@ -162,39 +149,6 @@ object GPlayAPI {
                 }
             }
         return properties
-    }
-
-    @Throws(Exception::class)
-    private fun getGsfAndVendingInfo(
-        context: Context,
-        isExport: Boolean = false,
-    ): Map<String, Any> {
-        val googleServicesPackageId = "com.google.android.gms"
-        val googleVendingPackageId = "com.android.vending"
-        val defaultGsfVersionCode = 203019037L
-        val defaultVendingVersionCode = 82151710L
-        val defaultVendingVersionString = "21.5.17-21 [0] [PR] 326734551"
-
-        var gsfVersionCode = defaultGsfVersionCode
-        var vendingVersionCode = defaultVendingVersionCode
-        var vendingVersionString = defaultVendingVersionString
-
-        if (isExport) {
-            try {
-                gsfVersionCode = getPackageInfo(context, googleServicesPackageId).let { PackageInfoCompat.getLongVersionCode(it) }
-                getPackageInfo(context, googleVendingPackageId).let {
-                    vendingVersionCode = PackageInfoCompat.getLongVersionCode(it)
-                    vendingVersionString = it.versionName ?: vendingVersionString
-                }
-            } catch (_: PackageManager.NameNotFoundException) {
-            }
-        }
-
-        return mapOf(
-            "gsfVersionCode" to gsfVersionCode,
-            "vendingVersionCode" to vendingVersionCode,
-            "vendingVersionString" to vendingVersionString,
-        )
     }
 
     private val eglExtensions: List<String>

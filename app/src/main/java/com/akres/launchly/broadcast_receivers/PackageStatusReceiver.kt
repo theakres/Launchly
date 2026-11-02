@@ -5,19 +5,13 @@ import android.content.Context
 import android.content.Intent
 
 class PackageStatusReceiver(
-    private val onAppStatusChange: (String, String) -> Unit,
+    private val onPackageRemoved: (String) -> Unit,
 ) : BroadcastReceiver() {
     override fun onReceive(
         context: Context,
         intent: Intent,
     ) {
-        val packageName = intent.data?.schemeSpecificPart
-        if (packageName != null) {
-            if (intent.action == Intent.ACTION_PACKAGE_REMOVED) {
-                onAppStatusChange(packageName, "removed")
-            } else if (intent.action == Intent.ACTION_PACKAGE_ADDED) {
-                onAppStatusChange(packageName, "added")
-            }
-        }
+        if (intent.action != Intent.ACTION_PACKAGE_REMOVED) return
+        intent.data?.schemeSpecificPart?.let(onPackageRemoved)
     }
 }

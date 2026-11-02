@@ -31,7 +31,6 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,7 +39,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,7 +49,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PlayArrow
@@ -85,14 +82,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.pm.PackageInfoCompat
-import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -106,7 +98,6 @@ import com.akres.launchly.screens.VersionSelector
 import com.akres.launchly.ui.theme.LaunchlyTheme
 import com.akres.launchly.utils.ActionButton
 import com.akres.launchly.utils.Architecture
-import com.akres.launchly.utils.Category
 import com.akres.launchly.utils.DownloadInfo
 import com.akres.launchly.utils.DownloadTracker
 import com.akres.launchly.utils.Downloader
@@ -116,6 +107,7 @@ import com.akres.launchly.utils.formatSpeed
 import com.akres.launchly.utils.DropDown
 import com.akres.launchly.utils.GPlayAPI
 import com.akres.launchly.utils.GPlayAPI.getApks
+import com.akres.launchly.utils.MINECRAFT_PACKAGE
 import com.akres.launchly.utils.Info
 import com.akres.launchly.utils.SavedVersionData
 import com.akres.launchly.utils.SessionResult
@@ -124,9 +116,7 @@ import com.akres.launchly.utils.Status
 import com.akres.launchly.utils.VersionDatabaseHelper
 import com.akres.launchly.utils.VersionDatabaseViewModel
 import com.akres.launchly.utils.VersionsViewModel
-import com.akres.launchly.utils.getPackageArch
 import com.akres.launchly.utils.getPackageInfo
-import com.akres.launchly.utils.getPackageInstallSource
 import com.akres.launchly.utils.installPackage
 import com.akres.launchly.utils.uninstallApp
 import com.dzeio.crashhandler.CrashHandler
@@ -136,7 +126,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
-import java.io.File
 import java.util.UUID
 import kotlin.math.roundToInt
 
@@ -356,7 +345,6 @@ fun Main(navHostController: NavHostController) {
                             version.name,
                             version.architecture,
                             Status.NOT_DOWNLOADED,
-                            listOf(),
                             now + index,
                         )
                     versionDbHelper.addVersion(newVersion)
@@ -409,7 +397,7 @@ fun DownloadedVersions(
     val isUpdating = remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         try {
-            getPackageInfo(context, "com.mojang.minecraftpe")
+            getPackageInfo(context, MINECRAFT_PACKAGE)
         } catch (_: Exception) {
             items.forEach {
                 if (it.status == Status.INSTALLED) {
@@ -422,8 +410,8 @@ fun DownloadedVersions(
 
     val packageStateReceiver =
         remember {
-            PackageStatusReceiver { packageName, status ->
-                if (packageName == "com.mojang.minecraftpe" && status == "removed" && !isUpdating.value) {
+            PackageStatusReceiver { packageName ->
+                if (packageName == MINECRAFT_PACKAGE && !isUpdating.value) {
                     items.forEach {
                         if (it.status == Status.INSTALLED) {
                             updateInfo(context, it.copy(status = Status.NOT_INSTALLED))
@@ -438,7 +426,6 @@ fun DownloadedVersions(
         val filter =
             IntentFilter().apply {
                 addAction(Intent.ACTION_PACKAGE_REMOVED)
-                addAction(Intent.ACTION_PACKAGE_ADDED)
                 addDataScheme("package")
             }
         context.registerReceiver(packageStateReceiver, filter)
@@ -498,8 +485,6 @@ private fun updateInfo(
 fun VersionItem(
     savedVersionData: SavedVersionData,
     onRemoveVersion: (String) -> Unit = {},
-    isLaunchly: Boolean = true,
-    packageName: String = "com.mojang.minecraftpe",
     isUpdating: MutableState<Boolean> = mutableStateOf(false),
     selected: Boolean = false,
     selectionMode: Boolean = false,
@@ -512,8 +497,7 @@ fun VersionItem(
     val downloadId = savedVersionData.installationId
     val downloadInfo = DownloadTracker.info[downloadId]
     LaunchedEffect(downloadId) {
-
-        if (isLaunchly && savedVersionData.status == Status.DOWNLOADING && !DownloadTracker.isActive(downloadId)) {
+        if (savedVersionData.status == Status.DOWNLOADING && !DownloadTracker.isActive(downloadId)) {
             updateStatus(Status.NOT_DOWNLOADED)
         }
     }
@@ -529,7 +513,6 @@ fun VersionItem(
 
     VersionItemLayout(
         savedVersionData = savedVersionData,
-        isLaunchly = isLaunchly,
         animatedAlpha = animatedAlpha,
         isRemoving = isRemoving,
         selected = selected,
@@ -538,7 +521,6 @@ fun VersionItem(
         downloadInfo = downloadInfo,
         installProgress = installProgress.intValue,
         isLoading = isLoading.value,
-        packageName = packageName,
         onVersionAction = { action ->
             scope.launch {
                 withContext(Dispatchers.Main) {
@@ -548,7 +530,6 @@ fun VersionItem(
                         context,
                         installProgress,
                         isLoading,
-                        packageName,
                         isUpdating,
                         scope,
                         updateStatus,
@@ -562,7 +543,6 @@ fun VersionItem(
 @Composable
 fun VersionItemLayout(
     savedVersionData: SavedVersionData,
-    isLaunchly: Boolean,
     animatedAlpha: Float,
     isRemoving: Boolean,
     selected: Boolean,
@@ -571,7 +551,6 @@ fun VersionItemLayout(
     downloadInfo: DownloadInfo?,
     isLoading: Boolean,
     installProgress: Int,
-    packageName: String,
     onVersionAction: (VersionAction) -> Unit,
 ) {
     val context = LocalContext.current
@@ -599,7 +578,6 @@ fun VersionItemLayout(
             Modifier
                 .fillMaxWidth()
                 .layout { measurable, constraints ->
-
                     val placeable = measurable.measure(constraints)
                     val scale = if (isRemoving) animatedAlpha else 1f
                     layout(placeable.width, (placeable.height * scale).roundToInt()) {
@@ -616,7 +594,6 @@ fun VersionItemLayout(
                     scaleY = cardScale
                 }.clip(MaterialTheme.shapes.medium)
                 .background(cardColor)
-
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = { if (currentSelectionMode) currentToggle() },
@@ -644,7 +621,6 @@ fun VersionItemLayout(
                     )
                     Info("Code: ${savedVersionData.versionCode}")
                     Info("Architecture: ${savedVersionData.architecture.arch}")
-                    if (savedVersionData.patches.isNotEmpty()) Info("Patches: ${savedVersionData.patches.joinToString()}")
 
                     val lastInfo = remember { mutableStateOf(DownloadInfo()) }
                     if (downloadInfo != null) lastInfo.value = downloadInfo
@@ -693,7 +669,6 @@ fun VersionItemLayout(
                     isLoading,
                     !selectionMode,
                     context,
-                    packageName,
                     onVersionAction,
                 )
             }
@@ -708,7 +683,6 @@ private fun GetActionButton(
     isLoading: Boolean,
     enabled: Boolean,
     context: Context,
-    packageName: String,
     onVersionAction: (VersionAction) -> Unit,
 ) {
     when (savedVersionData.status) {
@@ -721,9 +695,7 @@ private fun GetActionButton(
                 enabled = enabled,
                 onClick = {
                     context.startActivity(
-                        context.packageManager.getLaunchIntentForPackage(
-                            packageName,
-                        ),
+                        context.packageManager.getLaunchIntentForPackage(MINECRAFT_PACKAGE),
                     )
                 },
             )
@@ -779,7 +751,6 @@ suspend fun handleVersionAction(
     context: Context,
     installProgress: MutableIntState,
     isLoading: MutableState<Boolean>,
-    packageName: String,
     isUpdating: MutableState<Boolean>,
     coroutineScope: CoroutineScope,
     updateStatus: (Status) -> Unit,
@@ -812,26 +783,21 @@ suspend fun handleVersionAction(
                         }
 
                         is Downloader.DownloadStatus.OnFinish -> {
-                            println("Download completed. Files: ${status.files}")
                             DownloadTracker.end(appContext, id)
                             updateStatus(Status.NOT_INSTALLED)
                         }
 
                         is Downloader.DownloadStatus.OnFailure -> {
-                            println("Failed to download ${status.fileName}: ${status.failureReason}")
                             DownloadTracker.end(appContext, id)
                             updateStatus(Status.NOT_DOWNLOADED)
                         }
 
                         is Downloader.DownloadStatus.OnCancel -> {
-                            println("Download cancelled for file: ${status.fileName}")
                             DownloadTracker.end(appContext, id)
                             updateStatus(Status.NOT_DOWNLOADED)
                         }
 
-                        is Downloader.DownloadStatus.OnDownloadSuccess -> {
-                            println("Successfully downloaded: ${status.fileName}")
-                        }
+                        is Downloader.DownloadStatus.OnDownloadSuccess -> Unit
                     }
                 }
             } catch (e: Exception) {
@@ -845,7 +811,6 @@ suspend fun handleVersionAction(
         }
 
         is VersionAction.Install -> {
-            println("Installing ${savedVersionData.name}")
             isLoading.value = true
             val apks =
                 Storage.versionDir(savedVersionData.installationId).listFiles { file ->
@@ -874,21 +839,19 @@ suspend fun handleVersionAction(
                             installProgress.intValue = -1
                             isLoading.value = false
                             isUpdating.value = false
-                            println("Failed to install: ${it.message}")
                         }
 
                         is SessionResult.OnCancel -> {
                             installProgress.intValue = -1
                             isLoading.value = false
                             isUpdating.value = false
-                            println("Installation cancelled")
                         }
                     }
                 }
                 try {
-                    val versionCode = getPackageInfo(context, packageName).let { PackageInfoCompat.getLongVersionCode(it) }
+                    val versionCode = getPackageInfo(context, MINECRAFT_PACKAGE).let { PackageInfoCompat.getLongVersionCode(it) }
                     if (versionCode > savedVersionData.versionCode.toLong()) {
-                        uninstallApp(context, packageName) { status ->
+                        uninstallApp(context, MINECRAFT_PACKAGE) { status ->
                             if (status == SessionResult.OnSuccess) {
                                 installPackage(context, apks, onResult)
                             } else {

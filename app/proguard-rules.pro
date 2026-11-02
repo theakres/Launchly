@@ -1,3 +1,0 @@
--keep class androidx.compose.** { *; }
--keepclassmembers class androidx.compose.** { *; }
--dontwarn androidx.compose.**

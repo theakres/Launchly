@@ -3,14 +3,9 @@ package com.akres.launchly.utils
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build.VERSION.SDK_INT
-import android.os.Build.VERSION_CODES.R
 import android.os.Build.VERSION_CODES.TIRAMISU
-import androidx.core.graphics.drawable.toBitmap
 import ru.solrudev.ackpine.DisposableSubscriptionContainer
 import ru.solrudev.ackpine.installer.InstallFailure
 import ru.solrudev.ackpine.installer.PackageInstaller
@@ -22,8 +17,9 @@ import ru.solrudev.ackpine.uninstaller.PackageUninstaller
 import ru.solrudev.ackpine.uninstaller.UninstallFailure
 import ru.solrudev.ackpine.uninstaller.parameters.UninstallParameters
 import java.io.File
-import java.io.IOException
 import java.util.UUID
+
+const val MINECRAFT_PACKAGE = "com.mojang.minecraftpe"
 
 fun getPackageInfo(
     context: Context,
@@ -35,26 +31,6 @@ fun getPackageInfo(
     } else {
         context.packageManager.getPackageInfo(packageName, flags)
     }
-
-fun getPackageInstallSource(
-    context: Context,
-    packageName: String,
-): String? =
-    if (SDK_INT >= R) {
-        context.packageManager.getInstallSourceInfo(packageName).installingPackageName
-    } else {
-        @Suppress("DEPRECATION")
-        context.packageManager.getInstallerPackageName(packageName)
-    }
-
-fun getPackageArch(packageInfo: PackageInfo): Architecture =
-    packageInfo.applicationInfo?.nativeLibraryDir?.let {
-        when {
-            it.contains("arm64") -> Architecture.ARM64
-            it.contains("armeabi-v7a") -> Architecture.ARM
-            else -> Architecture.UNKNOWN
-        }
-    } ?: Architecture.UNKNOWN
 
 fun installPackage(
     context: Context,

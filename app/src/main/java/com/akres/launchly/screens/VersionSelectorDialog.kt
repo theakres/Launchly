@@ -2,14 +2,6 @@ package com.akres.launchly.screens
 
 import android.content.Context
 import android.os.Build
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,29 +9,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialogDefaults
-import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -56,7 +41,6 @@ import com.akres.launchly.utils.Architecture
 import com.akres.launchly.utils.VersionData
 import com.akres.launchly.utils.VersionsViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VersionSelector(
     showDialog: Boolean,
@@ -65,11 +49,9 @@ fun VersionSelector(
     onConfirmation: (versions: List<VersionData>) -> Unit,
 ) {
     val archs = (Build.SUPPORTED_ABIS.map { Architecture.fromString(it).arch }).filter { it != "unknown" }
-    var animateIn by remember { mutableStateOf(false) }
     var selectedArch by remember { mutableStateOf(Architecture.ARM64) }
     val selectedVersions = remember { mutableStateListOf<VersionData>() }
     var searchQuery by remember { mutableStateOf("") }
-    var showAnimatedDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
@@ -77,140 +59,106 @@ fun VersionSelector(
     val showVersionCode = versionListPrefs.getBoolean("show_version_code", true)
     val showDividers = versionListPrefs.getBoolean("show_dividers", true)
 
-    LaunchedEffect(showDialog) {
-        if (showDialog) showAnimatedDialog = true
-    }
-
-    if (!showAnimatedDialog) return
-    BasicAlertDialog(
+    AnimatedDialog(
+        showDialog = showDialog,
         onDismissRequest = {
             selectedArch = Architecture.ARM64
             selectedVersions.clear()
             searchQuery = ""
             onConfirmation(emptyList())
-            animateIn = false
         },
         properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        LaunchedEffect(Unit) {
-            animateIn = true
-        }
-        AnimatedVisibility(
-            visible = animateIn,
-            enter =
-                fadeIn(spring(stiffness = Spring.StiffnessHigh)) +
-                    scaleIn(
-                        initialScale = .8f,
-                        animationSpec =
-                            spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow,
-                            ),
-                    ),
-            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f),
-        ) {
-            Surface(
-                shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = AlertDialogDefaults.TonalElevation,
+    ) { hide ->
+        Column(modifier = Modifier.padding(vertical = 8.dp, horizontal = 24.dp)) {
+            Text(
+                "Select Minecraft Version",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(vertical = 16.dp),
+            )
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.padding(vertical = 8.dp, horizontal = 24.dp)) {
-                    Text(
-                        "Select Minecraft Version",
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(vertical = 16.dp),
+                TextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text("Search Version") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    trailingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                )
+            }
+            TabRow(selectedTabIndex = selectedArch.ordinal) {
+                archs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = index == selectedArch.ordinal,
+                        onClick = { selectedArch = Architecture.entries.toTypedArray()[index] },
+                        text = { Text(title) },
                     )
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        TextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            label = { Text("Search Version") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            trailingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        )
+                }
+            }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .weight(1f),
+            ) {
+                val viewModel = versionsViewModels[selectedArch.ordinal]
+                val versionData by viewModel.versionData.collectAsState()
+                val isLoading by viewModel.isLoading.collectAsState()
+                val error by viewModel.error.collectAsState()
+
+                when {
+                    isLoading -> {
+                        CircularProgressIndicator(Modifier.align(Alignment.Center))
                     }
-                    TabRow(selectedTabIndex = selectedArch.ordinal) {
-                        archs.forEachIndexed { index, title ->
-                            Tab(
-                                selected = index == selectedArch.ordinal,
-                                onClick = { selectedArch = Architecture.entries.toTypedArray()[index] },
-                                text = { Text(title) },
-                            )
-                        }
+
+                    error != null -> {
+                        Text("Error: $error", Modifier.align(Alignment.Center))
                     }
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                    ) {
-                        val viewModel = versionsViewModels[selectedArch.ordinal]
-                        val versionData by viewModel.versionData.collectAsState()
-                        val isLoading by viewModel.isLoading.collectAsState()
-                        val error by viewModel.error.collectAsState()
 
-                        when {
-                            isLoading -> {
-                                CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    else -> {
+                        val filteredVersions =
+                            versionData.filter {
+                                it.name.contains(searchQuery, ignoreCase = true) ||
+                                    it.code.toString().contains(searchQuery)
                             }
-
-                            error != null -> {
-                                Text("Error: $error", Modifier.align(Alignment.Center))
-                            }
-
-                            else -> {
-                                val filteredVersions =
-                                    versionData.filter {
-                                        it.name.contains(searchQuery, ignoreCase = true) ||
-                                            it.code.toString().contains(searchQuery)
-                                    }
-                                LazyColumn {
-                                    items(
-                                        items = filteredVersions,
-                                        key = { it.code },
-                                    ) { version ->
-                                        val added = "${version.code}|${version.architecture.arch}" in addedVersions
-                                        VersionRow(
-                                            version = version,
-                                            selected = version in selectedVersions,
-                                            added = added,
-                                            onClick = {
-                                                if (version in selectedVersions) selectedVersions.remove(version) else selectedVersions.add(version)
-                                            },
-                                            showVersionCode = showVersionCode,
-                                        )
-                                        if (showDividers) HorizontalDivider()
-                                    }
-                                }
+                        LazyColumn {
+                            items(
+                                items = filteredVersions,
+                                key = { it.code },
+                            ) { version ->
+                                val added = "${version.code}|${version.architecture.arch}" in addedVersions
+                                VersionRow(
+                                    version = version,
+                                    selected = version in selectedVersions,
+                                    added = added,
+                                    onClick = {
+                                        if (version in selectedVersions) selectedVersions.remove(version) else selectedVersions.add(version)
+                                    },
+                                    showVersionCode = showVersionCode,
+                                )
+                                if (showDividers) HorizontalDivider()
                             }
                         }
-                    }
-                    TextButton(
-                        onClick = {
-
-                            val ordered =
-                                versionsViewModels.flatMap { vm -> vm.versionData.value.filter { it in selectedVersions } }
-                            onConfirmation(ordered)
-                            selectedArch = Architecture.ARM64
-                            selectedVersions.clear()
-                            searchQuery = ""
-                            animateIn = false
-                        },
-                        modifier =
-                            Modifier
-                                .align(Alignment.End)
-                                .padding(top = 16.dp),
-                    ) {
-                        Text(if (selectedVersions.isEmpty()) "Close" else "Confirm")
                     }
                 }
             }
-            DisposableEffect(Unit) {
-                onDispose {
-                    showAnimatedDialog = false
-                }
+            TextButton(
+                onClick = {
+                    val ordered =
+                        versionsViewModels.flatMap { vm -> vm.versionData.value.filter { it in selectedVersions } }
+                    onConfirmation(ordered)
+                    selectedArch = Architecture.ARM64
+                    selectedVersions.clear()
+                    searchQuery = ""
+                    hide()
+                },
+                modifier =
+                    Modifier
+                        .align(Alignment.End)
+                        .padding(top = 16.dp),
+            ) {
+                Text(if (selectedVersions.isEmpty()) "Close" else "Confirm")
             }
         }
     }

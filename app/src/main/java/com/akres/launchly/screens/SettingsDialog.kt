@@ -2,14 +2,6 @@ package com.akres.launchly.screens
 
 import android.annotation.SuppressLint
 import android.content.Context
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,17 +14,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.AlertDialogDefaults
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +34,6 @@ import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 
 @SuppressLint("ApplySharedPref")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsDialog(
     showDialog: Boolean,
@@ -58,105 +43,66 @@ fun SettingsDialog(
 ) {
     val context = LocalContext.current
 
-    var animateIn by remember { mutableStateOf(false) }
-    var showAnimatedDialog by remember { mutableStateOf(false) }
     var showAppSettings by remember { mutableStateOf(false) }
     var showConfirmationDialog by remember { mutableStateOf(false) }
-    LaunchedEffect(showDialog) {
-        if (showDialog) showAnimatedDialog = true
-    }
 
-    if (!showAnimatedDialog) return
-    BasicAlertDialog(
-        onDismissRequest = {
-            animateIn = false
-            onDismissRequest()
-        },
-    ) {
-        LaunchedEffect(Unit) {
-            animateIn = true
-        }
-        AnimatedVisibility(
-            visible = animateIn,
-            enter =
-                fadeIn(spring(stiffness = Spring.StiffnessHigh)) +
-                    scaleIn(
-                        initialScale = .8f,
-                        animationSpec =
-                            spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow,
-                            ),
-                    ),
-            exit = slideOutVertically { it / 8 } + fadeOut() + scaleOut(targetScale = .95f),
-        ) {
-            Surface(
-                shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = AlertDialogDefaults.TonalElevation,
+    AnimatedDialog(showDialog = showDialog, onDismissRequest = onDismissRequest) {
+        Column(modifier = Modifier.padding(vertical = 24.dp, horizontal = 24.dp)) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.surfaceContainer,
+                            MaterialTheme.shapes.extraLarge,
+                        ).padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(19.dp),
             ) {
-                Column(modifier = Modifier.padding(vertical = 24.dp, horizontal = 24.dp)) {
-                    Column(
+                if (userProfileInfo.size == 3) {
+                    Row(
                         modifier =
                             Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceContainer,
-                                    MaterialTheme.shapes.extraLarge,
-                                ).padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(19.dp),
+                                .padding(12.dp)
+                                .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(24.dp),
                     ) {
-                        if (userProfileInfo.isNotEmpty() && userProfileInfo.size == 3) {
-                            Row(
-                                modifier =
-                                    Modifier
-                                        .padding(12.dp)
-                                        .fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                            ) {
-                                AsyncImage(
-                                    modifier =
-                                        Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape),
-                                    model = userProfileInfo[2] ?: "",
-                                    contentDescription = "User Profile",
-                                )
-                                Column {
-                                    Text(
-                                        text = userProfileInfo[0] ?: "",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        overflow = TextOverflow.Ellipsis,
-                                        maxLines = 1,
-                                    )
-                                    Text(
-                                        text = userProfileInfo[1] ?: "",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        overflow = TextOverflow.Ellipsis,
-                                        maxLines = 1,
-                                    )
-                                }
-                            }
-                            OutlinedButton(
-                                onClick = {
-                                    showConfirmationDialog = true
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text("Log out")
-                            }
+                        AsyncImage(
+                            modifier =
+                                Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape),
+                            model = userProfileInfo[2] ?: "",
+                            contentDescription = "User Profile",
+                        )
+                        Column {
+                            Text(
+                                text = userProfileInfo[0] ?: "",
+                                style = MaterialTheme.typography.bodyLarge,
+                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 1,
+                            )
+                            Text(
+                                text = userProfileInfo[1] ?: "",
+                                style = MaterialTheme.typography.bodyMedium,
+                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 1,
+                            )
                         }
                     }
-                    Column(modifier = Modifier.padding(0.dp, 8.dp)) {
-                        Setting_Option("Settings", Icons.Default.Settings) {
-                            showAppSettings = true
-                        }
+                    OutlinedButton(
+                        onClick = {
+                            showConfirmationDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Log out")
                     }
                 }
             }
-            DisposableEffect(Unit) {
-                onDispose {
-                    showAnimatedDialog = false
+            Column(modifier = Modifier.padding(0.dp, 8.dp)) {
+                SettingOption("Settings", Icons.Default.Settings) {
+                    showAppSettings = true
                 }
             }
         }
@@ -192,7 +138,7 @@ fun SettingsDialog(
 }
 
 @Composable
-fun Setting_Option(
+private fun SettingOption(
     title: String,
     icon: ImageVector,
     onClick: () -> Unit,

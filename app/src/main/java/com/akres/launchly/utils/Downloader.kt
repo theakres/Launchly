@@ -1,4 +1,5 @@
 package com.akres.launchly.utils
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -20,9 +21,7 @@ class Downloader(
             val speed: Float,
         ) : DownloadStatus()
 
-        data class OnFinish(
-            val files: List<File>,
-        ) : DownloadStatus()
+        data object OnFinish : DownloadStatus()
 
         data class OnFailure(
             val fileName: String,
@@ -41,7 +40,6 @@ class Downloader(
     data class DownloadTask(
         val url: String,
         val file: File,
-        var progress: Int = 0,
         var isCancelled: Boolean = false,
         var downloadJob: Job? = null,
     )
@@ -76,7 +74,6 @@ class Downloader(
                                         val currentTime = System.currentTimeMillis()
                                         val elapsed = currentTime - lastStatus
                                         if (elapsed >= 1000) {
-
                                             val instant = (total - lastDownloadedSize) * 1000f / elapsed
                                             speed = if (speed == 0f) instant else speed * 0.5f + instant * 0.5f
                                             lastStatus = currentTime
@@ -92,7 +89,7 @@ class Downloader(
                                 val finished = synchronized(lock) { ++successCount == urlToFileNameMap.size }
                                 onStatus(status)
                                 if (finished) {
-                                    onStatus(DownloadStatus.OnFinish(downloads.values.map { it.file }))
+                                    onStatus(DownloadStatus.OnFinish)
                                 }
                             }
 
@@ -166,7 +163,6 @@ class Downloader(
             }
             onStatus(DownloadStatus.OnDownloadSuccess(task.file.name))
         } catch (e: Exception) {
-
             val reason = if (task.isCancelled) "cancelled" else e.message ?: "Unknown error"
             onStatus(DownloadStatus.OnFailure(task.file.name, reason))
         }
