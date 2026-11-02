@@ -13,7 +13,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +72,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -260,6 +263,7 @@ fun Main(navHostController: NavHostController) {
                 }
             },
             onRemoveVersion = {
+                DownloadTracker.cancel(context, it)
                 versionDbHelper.removeVersion(it)
                 val fileToDelete = File(context.filesDir, "versions/$it/")
                 if (fileToDelete.exists()) fileToDelete.deleteRecursively()
@@ -407,7 +411,6 @@ fun VersionItem(
     val isRemoving = remember { mutableStateOf(false) }
     val attemptRemove = remember { mutableStateOf(false) }
     val downloadId = savedVersionData.installationId
-    val isPaused = DownloadTracker.paused[downloadId] == true
     val downloadInfo = DownloadTracker.info[downloadId]
     LaunchedEffect(downloadId) {
         // Status says "downloading" but nothing is running (e.g. the process was killed) -> reset
@@ -448,7 +451,6 @@ fun VersionItem(
         animatedAlpha = animatedAlpha,
         onRemoveVersion = onRemoveVersion,
         isRemoving = isRemoving.value,
-        isPaused = isPaused,
         downloadInfo = downloadInfo,
         installProgress = installProgress.intValue,
         isLoading = isLoading.value,
@@ -482,7 +484,6 @@ fun VersionItemLayout(
     animatedAlpha: Float,
     onRemoveVersion: (String) -> Unit,
     isRemoving: Boolean,
-    isPaused: Boolean,
     downloadInfo: DownloadInfo?,
     isLoading: Boolean,
     installProgress: Int,
@@ -574,23 +575,41 @@ fun VersionItemLayout(
                     Info("Code: ${savedVersionData.versionCode}")
                     Info("Architecture: ${savedVersionData.architecture}")
                     if (savedVersionData.patches.isNotEmpty()) Info("Patches: ${savedVersionData.patches.joinToString()}")
-                    if (isDownloading) {
-                        val dl = downloadInfo ?: DownloadInfo()
-                        Info(
-                            if (isPaused) {
-                                "Speed: Paused"
-                            } else {
-                                "Speed: ${formatSpeed(dl.speed)} • ETA ${formatEta(dl.etaSeconds)}"
-                            },
-                        )
-                        Info("${formatBytes(dl.downloaded)} / ${formatBytes(dl.total)} (${(dl.fraction * 100).toInt()}%)")
-                        LinearProgressIndicator(
-                            progress = { dl.fraction },
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 6.dp, end = 8.dp),
-                        )
+                    // keep showing the last known numbers while the block fades out
+                    val lastInfo = remember { mutableStateOf(DownloadInfo()) }
+                    if (downloadInfo != null) lastInfo.value = downloadInfo
+                    val reveal by animateFloatAsState(
+                        targetValue = if (isDownloading) 1f else 0f,
+                        animationSpec = tween(durationMillis = 400),
+                        label = "downloadReveal",
+                    )
+                    val animatedFraction by animateFloatAsState(
+                        targetValue = lastInfo.value.fraction,
+                        animationSpec = tween(durationMillis = 900, easing = LinearEasing),
+                        label = "downloadFraction",
+                    )
+                    if (isDownloading || reveal > 0f) {
+                        val dl = lastInfo.value
+                        Column(
+                            Modifier
+                                .clipToBounds()
+                                .layout { measurable, constraints ->
+                                    val placeable = measurable.measure(constraints)
+                                    layout(placeable.width, (placeable.height * reveal).roundToInt()) {
+                                        placeable.placeRelative(0, 0)
+                                    }
+                                }.alpha(reveal),
+                        ) {
+                            Info("Speed: ${formatSpeed(dl.speed)} • ETA ${formatEta(dl.etaSeconds)}")
+                            Info("${formatBytes(dl.downloaded)} / ${formatBytes(dl.total)} (${(dl.fraction * 100).toInt()}%)")
+                            LinearProgressIndicator(
+                                progress = { animatedFraction },
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 6.dp, end = 8.dp),
+                            )
+                        }
                     }
                     if (installProgress > -1) Info("Installing... $installProgress%")
                 }
@@ -607,7 +626,6 @@ fun VersionItemLayout(
                     context,
                     packageName,
                     onVersionAction,
-                    isPaused,
                 )
             }
         }
@@ -625,7 +643,6 @@ private fun GetActionButton(
     context: Context,
     packageName: String,
     onVersionAction: (VersionAction) -> Unit,
-    isPaused: Boolean,
 ) {
     when (savedVersionData.status) {
         Status.INSTALLED -> {
@@ -690,11 +707,6 @@ private fun GetActionButton(
                 DropDown(
                     menu =
                         listOf(
-                            if (isPaused) {
-                                "Resume" to { onVersionAction(VersionAction.ResumeDownload) }
-                            } else {
-                                "Pause" to { onVersionAction(VersionAction.PauseDownload) }
-                            },
                             "Cancel" to { onVersionAction(VersionAction.CancelDownload) },
                         ),
                     expanded = expanded,
@@ -769,16 +781,6 @@ suspend fun handleVersionAction(
 
         is VersionAction.CancelDownload -> {
             DownloadTracker.downloader(savedVersionData.installationId)?.cancelAll()
-        }
-
-        is VersionAction.PauseDownload -> {
-            DownloadTracker.downloader(savedVersionData.installationId)?.pauseAll()
-            DownloadTracker.setPaused(context, savedVersionData.installationId, true)
-        }
-
-        is VersionAction.ResumeDownload -> {
-            DownloadTracker.downloader(savedVersionData.installationId)?.resumeAll()
-            DownloadTracker.setPaused(context, savedVersionData.installationId, false)
         }
 
         is VersionAction.Install -> {
@@ -874,10 +876,6 @@ sealed class VersionAction {
     data object StartDownload : VersionAction()
 
     data object CancelDownload : VersionAction()
-
-    data object PauseDownload : VersionAction()
-
-    data object ResumeDownload : VersionAction()
 
     data object Install : VersionAction()
 

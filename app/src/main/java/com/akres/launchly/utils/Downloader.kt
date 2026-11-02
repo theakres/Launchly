@@ -2,7 +2,6 @@ package com.akres.launchly.utils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -43,7 +42,6 @@ class Downloader(
         val url: String,
         val file: File,
         var progress: Int = 0,
-        var isPaused: Boolean = false,
         var isCancelled: Boolean = false,
         var downloadJob: Job? = null,
     )
@@ -147,10 +145,6 @@ class Downloader(
 
                 try {
                     while (!task.isCancelled) {
-                        if (task.isPaused) {
-                            delay(500)
-                            continue
-                        }
                         bytesRead = inputStream.read(buffer)
                         if (bytesRead == -1) break
 
@@ -172,20 +166,9 @@ class Downloader(
             }
             onStatus(DownloadStatus.OnDownloadSuccess(task.file.name))
         } catch (e: Exception) {
-            e.printStackTrace()
-            onStatus(DownloadStatus.OnFailure(task.file.name, e.message ?: "Unknown error"))
-        }
-    }
-
-    fun pauseAll() {
-        downloads.values.forEach { task ->
-            task.isPaused = true
-        }
-    }
-
-    fun resumeAll() {
-        downloads.values.forEach { task ->
-            task.isPaused = false
+            // closing/cancelling mid-read throws IOException; that's a cancel, not a failure
+            val reason = if (task.isCancelled) "cancelled" else e.message ?: "Unknown error"
+            onStatus(DownloadStatus.OnFailure(task.file.name, reason))
         }
     }
 

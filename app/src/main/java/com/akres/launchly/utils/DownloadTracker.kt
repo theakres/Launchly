@@ -24,7 +24,6 @@ data class DownloadInfo(
  */
 object DownloadTracker {
     val info = mutableStateMapOf<String, DownloadInfo>()
-    val paused = mutableStateMapOf<String, Boolean>()
 
     private val downloaders = ConcurrentHashMap<String, Downloader>()
     private val names = ConcurrentHashMap<String, String>()
@@ -49,9 +48,9 @@ object DownloadTracker {
         total: Long,
     ) {
         val app = context.applicationContext
+        downloaders.remove(id)?.cancelAll()
         val wasEmpty = names.isEmpty()
         names[id] = name
-        paused.remove(id)
         info[id] = DownloadInfo(0L, total, 0f)
         if (wasEmpty) {
             ContextCompat.startForegroundService(app, android.content.Intent(app, DownloadService::class.java))
@@ -67,18 +66,17 @@ object DownloadTracker {
         speed: Float,
     ) {
         val current = info[id] ?: return
-        info[id] = current.copy(downloaded = downloaded, speed = if (paused[id] == true) 0f else speed)
+        info[id] = current.copy(downloaded = downloaded, speed = speed)
         notifyProgress(context.applicationContext, force = false)
     }
 
-    fun setPaused(
+    /** Stops a download (if any) and forgets about it, e.g. when its version is removed. */
+    fun cancel(
         context: Context,
         id: String,
-        value: Boolean,
     ) {
-        if (value) paused[id] = true else paused.remove(id)
-        info[id]?.let { info[id] = it.copy(speed = 0f) }
-        notifyProgress(context.applicationContext, force = true)
+        downloaders[id]?.cancelAll()
+        end(context, id)
     }
 
     @Synchronized
@@ -89,7 +87,6 @@ object DownloadTracker {
         val app = context.applicationContext
         names.remove(id) ?: return
         info.remove(id)
-        paused.remove(id)
         downloaders.remove(id)
         if (names.isEmpty()) {
             app.stopService(android.content.Intent(app, DownloadService::class.java))
@@ -110,19 +107,15 @@ object DownloadTracker {
         if (!force && now - lastNotify < 1000) return
         if (names.isEmpty()) return
         lastNotify = now
-        val infos = names.keys.mapNotNull { info[it] }
+        val live = names.filterKeys { info.containsKey(it) }
+        if (live.isEmpty()) return
+        val infos = live.keys.mapNotNull { info[it] }
         val downloaded = infos.sumOf { it.downloaded }
         val total = infos.sumOf { it.total }
         val speed = infos.sumOf { it.speed.toDouble() }.toFloat()
-        val allPaused = names.keys.all { paused[it] == true }
-        val title = if (names.size == 1) names.values.first() else "Downloading ${names.size} versions"
+        val title = if (live.size == 1) live.values.first() else "Downloading ${live.size} versions"
         val percent = if (total > 0) (downloaded * 100 / total).toInt() else 0
-        val text =
-            if (allPaused) {
-                "Paused • $percent% (${formatBytes(downloaded)} / ${formatBytes(total)})"
-            } else {
-                "$percent% • ${formatBytes(downloaded)} / ${formatBytes(total)} • ${formatSpeed(speed)}"
-            }
+        val text = "$percent% • ${formatBytes(downloaded)} / ${formatBytes(total)} • ${formatSpeed(speed)}"
         DownloadNotifications.show(app, title, text, percent)
     }
 }
