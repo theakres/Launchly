@@ -18,7 +18,7 @@ class Downloader(
     sealed class DownloadStatus {
         data class OnProgress(
             val downloadedSize: Long,
-            val speed: Float,
+            val speed: Float, // bytes per second
         ) : DownloadStatus()
 
         data class OnFinish(
@@ -57,8 +57,9 @@ class Downloader(
         val downloadedSizeMap = mutableMapOf<String, Long>()
         var successCount = 0
         var lastDownloadedSize = 0L
-        var lastStatus = 0L
+        var lastStatus = System.currentTimeMillis()
         var speed = 0f
+        val lock = Any()
         urlToFileNameMap.forEach { (fileName, url) ->
             val file = File(destinationDir, "$fileName.temp")
             val task = DownloadTask(url, file)
@@ -70,22 +71,29 @@ class Downloader(
                     downloadFile(task) { status ->
                         when (status) {
                             is DownloadStatus.OnProgress -> {
-                                downloadedSizeMap[fileName] = status.downloadedSize
-                                val downloadedSize = downloadedSizeMap.values.sum()
-                                val currentTime = System.currentTimeMillis()
-                                if (currentTime - lastStatus > 1000) {
-                                    speed = (downloadedSize - lastDownloadedSize) / 1024 / 1024f
-                                    lastStatus = currentTime
-                                    lastDownloadedSize = downloadedSize
-                                }
-                                onStatus(DownloadStatus.OnProgress(downloadedSize, speed))
+                                val (downloadedSize, currentSpeed) =
+                                    synchronized(lock) {
+                                        downloadedSizeMap[fileName] = status.downloadedSize
+                                        val total = downloadedSizeMap.values.sum()
+                                        val currentTime = System.currentTimeMillis()
+                                        val elapsed = currentTime - lastStatus
+                                        if (elapsed >= 1000) {
+                                            // bytes per second, smoothed so the number doesn't jump around
+                                            val instant = (total - lastDownloadedSize) * 1000f / elapsed
+                                            speed = if (speed == 0f) instant else speed * 0.5f + instant * 0.5f
+                                            lastStatus = currentTime
+                                            lastDownloadedSize = total
+                                        }
+                                        total to speed
+                                    }
+                                onStatus(DownloadStatus.OnProgress(downloadedSize, currentSpeed))
                             }
 
                             is DownloadStatus.OnDownloadSuccess -> {
                                 file.renameTo(File(destinationDir, fileName))
-                                successCount++
+                                val finished = synchronized(lock) { ++successCount == urlToFileNameMap.size }
                                 onStatus(status)
-                                if (successCount == urlToFileNameMap.size) {
+                                if (finished) {
                                     onStatus(DownloadStatus.OnFinish(downloads.values.map { it.file }))
                                 }
                             }
@@ -118,31 +126,33 @@ class Downloader(
                 .build()
 
         try {
-            withContext(Dispatchers.IO) {
+            val ok = withContext(Dispatchers.IO) {
                 val response = client.newCall(request).execute()
 
                 if (!response.isSuccessful) {
                     onStatus(DownloadStatus.OnFailure(task.file.name, "HTTP error: ${response.code}"))
-                    return@withContext
+                    return@withContext false
                 }
 
                 val inputStream = response.body?.byteStream()
                 val outputStream = task.file.outputStream()
-                val buffer = ByteArray(100)
+                val buffer = ByteArray(64 * 1024)
                 var bytesRead: Int
                 var totalBytesRead = 0L
 
                 if (inputStream == null) {
                     onStatus(DownloadStatus.OnFailure(task.file.name, "Failed to open input stream"))
-                    return@withContext
+                    return@withContext false
                 }
 
                 try {
-                    while (inputStream.read(buffer).also { bytesRead = it } != -1 && !task.isCancelled) {
+                    while (!task.isCancelled) {
                         if (task.isPaused) {
                             delay(500)
                             continue
                         }
+                        bytesRead = inputStream.read(buffer)
+                        if (bytesRead == -1) break
 
                         totalBytesRead += bytesRead
                         outputStream.write(buffer, 0, bytesRead)
@@ -153,6 +163,12 @@ class Downloader(
                     inputStream.close()
                     outputStream.close()
                 }
+                true
+            }
+            if (!ok) return
+            if (task.isCancelled) {
+                onStatus(DownloadStatus.OnFailure(task.file.name, "cancelled"))
+                return
             }
             onStatus(DownloadStatus.OnDownloadSuccess(task.file.name))
         } catch (e: Exception) {

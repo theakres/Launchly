@@ -1,14 +1,18 @@
 package com.akres.launchly.activities
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -46,6 +50,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -54,11 +59,9 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -98,7 +101,12 @@ import com.akres.launchly.screens.VersionSelector
 import com.akres.launchly.ui.theme.LaunchlyTheme
 import com.akres.launchly.utils.ActionButton
 import com.akres.launchly.utils.Category
+import com.akres.launchly.utils.DownloadInfo
+import com.akres.launchly.utils.DownloadTracker
 import com.akres.launchly.utils.Downloader
+import com.akres.launchly.utils.formatBytes
+import com.akres.launchly.utils.formatEta
+import com.akres.launchly.utils.formatSpeed
 import com.akres.launchly.utils.DropDown
 import com.akres.launchly.utils.GPlayAPI
 import com.akres.launchly.utils.GPlayAPI.getApks
@@ -111,7 +119,6 @@ import com.akres.launchly.utils.Status
 import com.akres.launchly.utils.VersionDatabaseHelper
 import com.akres.launchly.utils.VersionDatabaseViewModel
 import com.akres.launchly.utils.VersionsViewModel
-import com.akres.launchly.utils.f
 import com.akres.launchly.utils.getPackageArch
 import com.akres.launchly.utils.getPackageInfo
 import com.akres.launchly.utils.getPackageInstallSource
@@ -130,17 +137,28 @@ import java.util.UUID
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         CrashHandler
             .Builder()
             .withContext(this)
             .build()
             .setup()
-        filesDir.walk().forEach {
-            if (it.isFile && it.name.endsWith(".temp")) {
-                it.delete()
+        // Leftovers of interrupted downloads; never touch them while a download is still running
+        if (!DownloadTracker.hasActive()) {
+            filesDir.walk().forEach {
+                if (it.isFile && it.name.endsWith(".temp")) {
+                    it.delete()
+                }
             }
         }
 
@@ -480,14 +498,18 @@ fun VersionItem(
     updateStatus: (Status) -> Unit = {},
 ) {
     val context = LocalContext.current
-    val downloader = remember(savedVersionData.installationId) { Downloader(client) }
     val scope = rememberCoroutineScope()
     val isRemoving = remember { mutableStateOf(false) }
     val attemptRemove = remember { mutableStateOf(false) }
-    val isPaused = remember { mutableStateOf(false) }
-    val downloadProgress = remember { mutableFloatStateOf(0f) }
-    val downloadSpeed = remember { mutableFloatStateOf(0f) }
-    val downloadEta = remember { mutableFloatStateOf(0f) }
+    val downloadId = savedVersionData.installationId
+    val isPaused = DownloadTracker.paused[downloadId] == true
+    val downloadInfo = DownloadTracker.info[downloadId]
+    LaunchedEffect(downloadId) {
+        // Status says "downloading" but nothing is running (e.g. the process was killed) -> reset
+        if (isLaunchly && savedVersionData.status == Status.DOWNLOADING && !DownloadTracker.isActive(downloadId)) {
+            updateStatus(Status.NOT_DOWNLOADED)
+        }
+    }
     val installProgress = remember { mutableIntStateOf(-1) }
     val isLoading = remember { mutableStateOf(false) }
     val animatedAlpha by animateFloatAsState(
@@ -522,10 +544,8 @@ fun VersionItem(
         onEditVersion = onEditVersion,
         onRemoveVersion = onRemoveVersion,
         isRemoving = isRemoving.value,
-        isPaused = isPaused.value,
-        downloadProgress = downloadProgress.floatValue,
-        downloadSpeed = downloadSpeed.floatValue,
-        downloadEta = downloadEta.floatValue,
+        isPaused = isPaused,
+        downloadInfo = downloadInfo,
         installProgress = installProgress.intValue,
         isLoading = isLoading.value,
         packageName = packageName,
@@ -536,11 +556,6 @@ fun VersionItem(
                         action,
                         savedVersionData,
                         context,
-                        downloader,
-                        downloadProgress,
-                        downloadSpeed,
-                        downloadEta,
-                        isPaused,
                         installProgress,
                         attemptRemove,
                         isLoading,
@@ -565,9 +580,7 @@ fun VersionItemLayout(
     onRemoveVersion: (String) -> Unit,
     isRemoving: Boolean,
     isPaused: Boolean,
-    downloadProgress: Float,
-    downloadSpeed: Float,
-    downloadEta: Float,
+    downloadInfo: DownloadInfo?,
     isLoading: Boolean,
     installProgress: Int,
     packageName: String,
@@ -579,12 +592,12 @@ fun VersionItemLayout(
     val maxWidth = if (isLaunchly) 300 else 150
     val swipeableState = rememberSwipeableState(initialValue = 0)
     val scope = rememberCoroutineScope()
-    val height = 120.dp
+    val height = if (savedVersionData.status == Status.DOWNLOADING) 180.dp else 120.dp
     val isInstalled = savedVersionData.status == Status.INSTALLED
     val isDownloading = savedVersionData.status == Status.DOWNLOADING
     val progress =
         if (isDownloading) {
-            downloadProgress / 100f
+            downloadInfo?.fraction ?: 0f
         } else if (installProgress > -1) {
             installProgress / 100f
         } else {
@@ -704,13 +717,21 @@ fun VersionItemLayout(
                     Info("Architecture: ${savedVersionData.architecture}")
                     if (savedVersionData.patches.isNotEmpty()) Info("Patches: ${savedVersionData.patches.joinToString()}")
                     if (isDownloading) {
+                        val dl = downloadInfo ?: DownloadInfo()
                         Info(
-                            "Downloading... " +
-                                if (isPaused) {
-                                    "(Paused)"
-                                } else {
-                                    "${f(downloadProgress)}% at ${f(downloadSpeed)} MB/s, ETA: ${f(downloadEta)}s"
-                                },
+                            if (isPaused) {
+                                "Speed: Paused"
+                            } else {
+                                "Speed: ${formatSpeed(dl.speed)} • ETA ${formatEta(dl.etaSeconds)}"
+                            },
+                        )
+                        Info("${formatBytes(dl.downloaded)} / ${formatBytes(dl.total)} (${(dl.fraction * 100).toInt()}%)")
+                        LinearProgressIndicator(
+                            progress = { dl.fraction },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 6.dp, end = 8.dp),
                         )
                     }
                     if (installProgress > -1) Info("Installing... $installProgress%")
@@ -829,11 +850,6 @@ suspend fun handleVersionAction(
     action: VersionAction,
     savedVersionData: SavedVersionData,
     context: Context,
-    downloader: Downloader,
-    downloadProgress: MutableFloatState,
-    downloadSpeed: MutableFloatState,
-    downloadEta: MutableFloatState,
-    isPaused: MutableState<Boolean>,
     installProgress: MutableIntState,
     attemptRemove: MutableState<Boolean>,
     isLoading: MutableState<Boolean>,
@@ -851,30 +867,34 @@ suspend fun handleVersionAction(
                         totalSize += apk.size
                         apk.name to apk.url
                     }
+                val id = savedVersionData.installationId
+                val appContext = context.applicationContext
+                DownloadTracker.begin(appContext, id, savedVersionData.name, totalSize)
                 updateStatus(Status.DOWNLOADING)
-                downloader.startDownload(
+                DownloadTracker.newDownloader(id, client).startDownload(
                     urlToFileNameMap,
                     File("${context.filesDir}/versions/${savedVersionData.installationId}"),
                 ) { status ->
                     when (status) {
                         is Downloader.DownloadStatus.OnProgress -> {
-                            downloadProgress.floatValue = (status.downloadedSize * 100f) / totalSize
-                            downloadSpeed.floatValue = status.speed
-                            downloadEta.floatValue = ((totalSize - status.downloadedSize) / 1024 / 1024) / status.speed
+                            DownloadTracker.update(appContext, id, status.downloadedSize, status.speed)
                         }
 
                         is Downloader.DownloadStatus.OnFinish -> {
                             println("Download completed. Files: ${status.files}")
+                            DownloadTracker.end(appContext, id)
                             updateStatus(Status.NOT_INSTALLED)
                         }
 
                         is Downloader.DownloadStatus.OnFailure -> {
                             println("Failed to download ${status.fileName}: ${status.failureReason}")
+                            DownloadTracker.end(appContext, id)
                             updateStatus(Status.NOT_DOWNLOADED)
                         }
 
                         is Downloader.DownloadStatus.OnCancel -> {
                             println("Download cancelled for file: ${status.fileName}")
+                            DownloadTracker.end(appContext, id)
                             updateStatus(Status.NOT_DOWNLOADED)
                         }
 
@@ -884,23 +904,23 @@ suspend fun handleVersionAction(
                     }
                 }
             } catch (e: Exception) {
+                DownloadTracker.end(context, savedVersionData.installationId)
                 Toast.makeText(context, "This account didn't buy Minecraft, is this the right Account?", Toast.LENGTH_SHORT).show()
             }
         }
 
         is VersionAction.CancelDownload -> {
-            downloader.cancelAll()
-            isPaused.value = false
+            DownloadTracker.downloader(savedVersionData.installationId)?.cancelAll()
         }
 
         is VersionAction.PauseDownload -> {
-            downloader.pauseAll()
-            isPaused.value = true
+            DownloadTracker.downloader(savedVersionData.installationId)?.pauseAll()
+            DownloadTracker.setPaused(context, savedVersionData.installationId, true)
         }
 
         is VersionAction.ResumeDownload -> {
-            downloader.resumeAll()
-            isPaused.value = false
+            DownloadTracker.downloader(savedVersionData.installationId)?.resumeAll()
+            DownloadTracker.setPaused(context, savedVersionData.installationId, false)
         }
 
         is VersionAction.Install -> {
