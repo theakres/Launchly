@@ -73,10 +73,10 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.akres.launchly.R
 import com.akres.launchly.activities.LoginActivity
-import com.akres.launchly.utils.GPlayAPI.getUserProfileArtwork
+import com.akres.launchly.utils.GooglePlayClient.getUserProfileArtwork
 import kotlinx.coroutines.launch
 
-data class OnBoardModel(
+data class OnboardingPage(
     val id: String,
     val icon: ImageVector,
     val title: String,
@@ -85,31 +85,31 @@ data class OnBoardModel(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Onboarding(
+fun OnboardingScreen(
     onFinish: () -> Unit = {},
     removes: List<String> = emptyList(),
 ) {
     val pages =
         mutableListOf(
-            OnBoardModel(
+            OnboardingPage(
                 id = "Start",
                 title = stringResource(R.string.onboarding_title_1),
                 description = stringResource(R.string.onboarding_description_1),
                 icon = Icons.Default.SyncAlt,
             ),
-            OnBoardModel(
+            OnboardingPage(
                 id = "SignIn",
                 title = stringResource(R.string.onboarding_title_2),
                 description = stringResource(R.string.onboarding_description_2),
                 icon = Icons.Default.AccountCircle,
             ),
-            OnBoardModel(
+            OnboardingPage(
                 id = "Permissions",
                 title = stringResource(R.string.onboarding_title_3),
                 description = stringResource(R.string.onboarding_description_3),
                 icon = Icons.Default.Key,
             ),
-            OnBoardModel(
+            OnboardingPage(
                 id = "Finish",
                 title = stringResource(R.string.onboarding_title_4),
                 description = stringResource(R.string.onboarding_description_4),
@@ -174,7 +174,7 @@ fun Onboarding(
                         },
                 userScrollEnabled = userScrollEnabled,
             ) { page ->
-                OnBoardItem(pages[page]) {
+                OnboardingPageContent(pages[page]) {
                     val key = pages[page].id
                     when (key) {
                         "SignIn" -> {
@@ -202,7 +202,7 @@ fun Onboarding(
                     }
                 }
             }
-            IndexIndicator(
+            PageIndicator(
                 modifier =
                     Modifier
                         .align(Alignment.CenterHorizontally)
@@ -369,11 +369,11 @@ fun PermissionsButton(
 }
 
 @Composable
-fun OnBoardItem(
-    page: OnBoardModel,
+fun OnboardingPageContent(
+    page: OnboardingPage,
     extras: @Composable () -> Unit = {},
 ) {
-    ReactiveLinear {
+    OrientationAwareLayout {
         Icon(
             imageVector = page.icon,
             contentDescription = null,
@@ -414,7 +414,7 @@ fun OnBoardItem(
 }
 
 @Composable
-fun ReactiveLinear(content: @Composable () -> Unit) {
+fun OrientationAwareLayout(content: @Composable () -> Unit) {
     val configuration = LocalConfiguration.current
     if (configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
         Row(
@@ -432,7 +432,7 @@ fun ReactiveLinear(content: @Composable () -> Unit) {
 }
 
 @Composable
-fun IndexIndicator(
+fun PageIndicator(
     modifier: Modifier = Modifier,
     currentPosition: Int,
     count: Int,

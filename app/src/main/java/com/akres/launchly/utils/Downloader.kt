@@ -16,23 +16,23 @@ class Downloader(
     private val scope = CoroutineScope(Dispatchers.IO)
 
     sealed class DownloadStatus {
-        data class OnProgress(
+        data class Progress(
             val downloadedSize: Long,
             val speed: Float,
         ) : DownloadStatus()
 
-        data object OnFinish : DownloadStatus()
+        data object AllFinished : DownloadStatus()
 
-        data class OnFailure(
+        data class Failure(
             val fileName: String,
             val failureReason: String,
         ) : DownloadStatus()
 
-        data class OnCancel(
+        data class Cancelled(
             val fileName: String,
         ) : DownloadStatus()
 
-        data class OnDownloadSuccess(
+        data class FileDownloaded(
             val fileName: String,
         ) : DownloadStatus()
     }
@@ -66,7 +66,7 @@ class Downloader(
                 scope.launch {
                     downloadFile(task) { status ->
                         when (status) {
-                            is DownloadStatus.OnProgress -> {
+                            is DownloadStatus.Progress -> {
                                 val (downloadedSize, currentSpeed) =
                                     synchronized(lock) {
                                         downloadedSizeMap[fileName] = status.downloadedSize
@@ -81,22 +81,22 @@ class Downloader(
                                         }
                                         total to speed
                                     }
-                                onStatus(DownloadStatus.OnProgress(downloadedSize, currentSpeed))
+                                onStatus(DownloadStatus.Progress(downloadedSize, currentSpeed))
                             }
 
-                            is DownloadStatus.OnDownloadSuccess -> {
+                            is DownloadStatus.FileDownloaded -> {
                                 file.renameTo(File(destinationDir, fileName))
                                 val finished = synchronized(lock) { ++successCount == urlToFileNameMap.size }
                                 onStatus(status)
                                 if (finished) {
-                                    onStatus(DownloadStatus.OnFinish)
+                                    onStatus(DownloadStatus.AllFinished)
                                 }
                             }
 
-                            is DownloadStatus.OnFailure -> {
+                            is DownloadStatus.Failure -> {
                                 if (status.failureReason.contains("cancelled", true)) {
                                     task.file.delete()
-                                    onStatus(DownloadStatus.OnCancel(status.fileName))
+                                    onStatus(DownloadStatus.Cancelled(status.fileName))
                                 } else {
                                     onStatus(status)
                                     cancelAll()
@@ -125,7 +125,7 @@ class Downloader(
                 val response = client.newCall(request).execute()
 
                 if (!response.isSuccessful) {
-                    onStatus(DownloadStatus.OnFailure(task.file.name, "HTTP error: ${response.code}"))
+                    onStatus(DownloadStatus.Failure(task.file.name, "HTTP error: ${response.code}"))
                     return@withContext false
                 }
 
@@ -136,7 +136,7 @@ class Downloader(
                 var totalBytesRead = 0L
 
                 if (inputStream == null) {
-                    onStatus(DownloadStatus.OnFailure(task.file.name, "Failed to open input stream"))
+                    onStatus(DownloadStatus.Failure(task.file.name, "Failed to open input stream"))
                     return@withContext false
                 }
 
@@ -148,7 +148,7 @@ class Downloader(
                         totalBytesRead += bytesRead
                         outputStream.write(buffer, 0, bytesRead)
 
-                        onStatus(DownloadStatus.OnProgress(totalBytesRead, 0f))
+                        onStatus(DownloadStatus.Progress(totalBytesRead, 0f))
                     }
                 } finally {
                     inputStream.close()
@@ -158,13 +158,13 @@ class Downloader(
             }
             if (!ok) return
             if (task.isCancelled) {
-                onStatus(DownloadStatus.OnFailure(task.file.name, "cancelled"))
+                onStatus(DownloadStatus.Failure(task.file.name, "cancelled"))
                 return
             }
-            onStatus(DownloadStatus.OnDownloadSuccess(task.file.name))
+            onStatus(DownloadStatus.FileDownloaded(task.file.name))
         } catch (e: Exception) {
             val reason = if (task.isCancelled) "cancelled" else e.message ?: "Unknown error"
-            onStatus(DownloadStatus.OnFailure(task.file.name, reason))
+            onStatus(DownloadStatus.Failure(task.file.name, reason))
         }
     }
 

@@ -13,11 +13,11 @@ import androidx.core.content.ContextCompat
 import java.io.File
 
 object Storage {
-    fun root(): File = File(Environment.getExternalStorageDirectory(), "Launchly")
+    fun rootDir(): File = File(Environment.getExternalStorageDirectory(), "Launchly")
 
-    fun versionDir(id: String): File = File(root(), id)
+    fun versionDir(id: String): File = File(rootDir(), id)
 
-    fun hasAccess(context: Context): Boolean =
+    fun hasStorageAccess(context: Context): Boolean =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Environment.isExternalStorageManager()
         } else {
@@ -25,7 +25,7 @@ object Storage {
                 PackageManager.PERMISSION_GRANTED
         }
 
-    fun requestAccess(context: Context) {
+    fun requestStorageAccess(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val intent =
                 Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${context.packageName}"))
@@ -42,7 +42,7 @@ object Storage {
         }
     }
 
-    fun migrateLegacy(context: Context) {
+    fun migrateLegacyVersions(context: Context) {
         val legacy = File(context.filesDir, "versions")
         val dirs = legacy.listFiles { f -> f.isDirectory } ?: return
         dirs.forEach { dir ->

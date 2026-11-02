@@ -57,7 +57,7 @@ fun AppSettingsDialog(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(24.dp, 0.dp),
                     )
-                    Option(
+                    AppSettingOption(
                         title = "Theme",
                         description = if (isDarkTheme.value) "Dark" else "Light",
                         state = isDarkTheme.value,
@@ -66,7 +66,7 @@ fun AppSettingsDialog(
                             uiPrefs.edit().putBoolean("dark_theme", it).apply()
                         },
                     )
-                    Option(
+                    AppSettingOption(
                         title = "Dynamic Color",
                         description = "Theme color based on wallpaper",
                         state = isDynamicColor.value,
@@ -81,7 +81,7 @@ fun AppSettingsDialog(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(24.dp, 24.dp, 24.dp, 0.dp),
                     )
-                    Option(
+                    AppSettingOption(
                         title = "Show Version Code",
                         description = "Show version code in version list",
                         state = showVersionCode.value,
@@ -90,7 +90,7 @@ fun AppSettingsDialog(
                             versionListPrefs.edit().putBoolean("show_version_code", it).apply()
                         },
                     )
-                    Option(
+                    AppSettingOption(
                         title = "Show Dividers",
                         description = "Show dividers between versions",
                         state = showDividers.value,
@@ -106,7 +106,7 @@ fun AppSettingsDialog(
 }
 
 @Composable
-fun Option(
+fun AppSettingOption(
     title: String,
     description: String,
     state: Boolean? = null,

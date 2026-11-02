@@ -21,13 +21,13 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.egl.EGLContext
 import javax.microedition.khronos.egl.EGLDisplay
 
-data class ApkData(
+data class ApkFileInfo(
     val url: String,
     val name: String,
     val size: Long,
 ) : Serializable
 
-object GPlayAPI {
+object GooglePlayClient {
     private const val GSF_VERSION_CODE = 203019037L
     private const val VENDING_VERSION_CODE = 82151710L
     private const val VENDING_VERSION_STRING = "21.5.17-21 [0] [PR] 326734551"
@@ -52,7 +52,7 @@ object GPlayAPI {
     suspend fun getApks(
         versionCode: Int,
         context: Context,
-    ): List<ApkData> =
+    ): List<ApkFileInfo> =
         withContext(Dispatchers.IO) {
             val authData = getAuthData(context)
             val files =
@@ -61,7 +61,7 @@ object GPlayAPI {
                     versionCode,
                     0,
                 )
-            files.map { ApkData(it.url, it.name, it.size) }
+            files.map { ApkFileInfo(it.url, it.name, it.size) }
         }
 
     suspend fun getUserProfileInfo(context: Context): List<String?> =

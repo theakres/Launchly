@@ -64,7 +64,7 @@ fun ActionButton(
 }
 
 @Composable
-fun DropDown(
+fun DropdownActionMenu(
     menu: List<Pair<String, () -> Unit>>,
     expanded: MutableState<Boolean>,
 ) {
@@ -85,4 +85,4 @@ fun DropDown(
 }
 
 @Composable
-fun Info(text: String) = Text(text, style = MaterialTheme.typography.bodySmall, overflow = TextOverflow.Ellipsis)
+fun InfoText(text: String) = Text(text, style = MaterialTheme.typography.bodySmall, overflow = TextOverflow.Ellipsis)

@@ -22,13 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.DialogProperties
 
-/**
- * Dialog with the app-wide enter/exit animation.
- *
- * [content] receives a `hide` callback that starts the exit animation; the dialog window is
- * removed once the animation has finished. [onDismissRequest] is called when the user dismisses
- * the dialog by tapping outside of it or pressing back.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnimatedDialog(

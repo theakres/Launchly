@@ -19,7 +19,7 @@ object DownloadNotifications {
     const val CHANNEL_ID = "downloads"
     const val NOTIFICATION_ID = 1001
 
-    fun ensureChannel(context: Context) {
+    fun ensureNotificationChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
         if (manager.getNotificationChannel(CHANNEL_ID) == null) {
             manager.createNotificationChannel(
@@ -31,14 +31,14 @@ object DownloadNotifications {
         }
     }
 
-    fun build(
+    fun buildNotification(
         context: Context,
         title: String,
         text: String,
         percent: Int,
         indeterminate: Boolean = false,
     ): Notification {
-        ensureChannel(context)
+        ensureNotificationChannel(context)
         val openApp =
             PendingIntent.getActivity(
                 context,
@@ -59,7 +59,7 @@ object DownloadNotifications {
             .build()
     }
 
-    fun show(
+    fun showNotification(
         context: Context,
         title: String,
         text: String,
@@ -68,7 +68,7 @@ object DownloadNotifications {
         try {
             context
                 .getSystemService(NotificationManager::class.java)
-                .notify(NOTIFICATION_ID, build(context, title, text, percent))
+                .notify(NOTIFICATION_ID, buildNotification(context, title, text, percent))
         } catch (_: SecurityException) {
         }
     }
@@ -87,7 +87,7 @@ class DownloadService : Service() {
         ServiceCompat.startForeground(
             this,
             DownloadNotifications.NOTIFICATION_ID,
-            DownloadNotifications.build(this, "Launchly", "Preparing download…", 0, indeterminate = true),
+            DownloadNotifications.buildNotification(this, "Launchly", "Preparing download…", 0, indeterminate = true),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
         )
         if (wakeLock == null) {

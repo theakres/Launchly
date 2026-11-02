@@ -9,28 +9,24 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -74,6 +70,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -81,9 +78,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -92,33 +92,33 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.akres.launchly.broadcast_receivers.PackageStatusReceiver
 import com.akres.launchly.screens.ConfirmationDialog
-import com.akres.launchly.screens.Onboarding
+import com.akres.launchly.screens.OnboardingScreen
 import com.akres.launchly.screens.SettingsDialog
-import com.akres.launchly.screens.VersionSelector
+import com.akres.launchly.screens.VersionSelectorDialog
 import com.akres.launchly.ui.theme.LaunchlyTheme
 import com.akres.launchly.utils.ActionButton
 import com.akres.launchly.utils.Architecture
+import com.akres.launchly.utils.AvailableVersionsViewModel
 import com.akres.launchly.utils.DownloadInfo
 import com.akres.launchly.utils.DownloadTracker
 import com.akres.launchly.utils.Downloader
+import com.akres.launchly.utils.DropdownActionMenu
+import com.akres.launchly.utils.GooglePlayClient
+import com.akres.launchly.utils.GooglePlayClient.getApks
+import com.akres.launchly.utils.InfoText
+import com.akres.launchly.utils.MINECRAFT_PACKAGE
+import com.akres.launchly.utils.SavedVersion
+import com.akres.launchly.utils.SavedVersionsViewModel
+import com.akres.launchly.utils.SessionResult
+import com.akres.launchly.utils.Storage
+import com.akres.launchly.utils.VersionDatabase
+import com.akres.launchly.utils.VersionStatus
 import com.akres.launchly.utils.formatBytes
 import com.akres.launchly.utils.formatEta
 import com.akres.launchly.utils.formatSpeed
-import com.akres.launchly.utils.DropDown
-import com.akres.launchly.utils.GPlayAPI
-import com.akres.launchly.utils.GPlayAPI.getApks
-import com.akres.launchly.utils.MINECRAFT_PACKAGE
-import com.akres.launchly.utils.Info
-import com.akres.launchly.utils.SavedVersionData
-import com.akres.launchly.utils.SessionResult
-import com.akres.launchly.utils.Storage
-import com.akres.launchly.utils.Status
-import com.akres.launchly.utils.VersionDatabaseHelper
-import com.akres.launchly.utils.VersionDatabaseViewModel
-import com.akres.launchly.utils.VersionsViewModel
-import com.akres.launchly.utils.getPackageInfo
+import com.akres.launchly.utils.getInstalledPackageInfo
 import com.akres.launchly.utils.installPackage
-import com.akres.launchly.utils.uninstallApp
+import com.akres.launchly.utils.uninstallPackage
 import com.dzeio.crashhandler.CrashHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -147,11 +147,11 @@ class MainActivity : ComponentActivity() {
             .build()
             .setup()
 
-        if (Storage.hasAccess(this)) {
+        if (Storage.hasStorageAccess(this)) {
             Thread {
-                Storage.migrateLegacy(this)
-                if (!DownloadTracker.hasActive()) {
-                    Storage.root().walk().forEach {
+                Storage.migrateLegacyVersions(this)
+                if (!DownloadTracker.hasActiveDownloads()) {
+                    Storage.rootDir().walk().forEach {
                         if (it.isFile && it.name.endsWith(".temp")) {
                             it.delete()
                         }
@@ -163,8 +163,8 @@ class MainActivity : ComponentActivity() {
         val sharedPreferences = getSharedPreferences("onboarding", MODE_PRIVATE)
         val accountPreferences = getSharedPreferences("accountData", Context.MODE_PRIVATE)
         val onboardingComplete = sharedPreferences.getBoolean("onboarding_complete", false)
-        if (onboardingComplete && !Storage.hasAccess(this)) {
-            Storage.requestAccess(this)
+        if (onboardingComplete && !Storage.hasStorageAccess(this)) {
+            Storage.requestStorageAccess(this)
         }
         setContent {
             LaunchlyTheme {
@@ -185,7 +185,7 @@ class MainActivity : ComponentActivity() {
                             if (!sharedPreferences.getBoolean("first_run", true)) {
                                 removes.add("Start")
                             }
-                            Onboarding(
+                            OnboardingScreen(
                                 onFinish = {
                                     sharedPreferences
                                         .edit()
@@ -205,7 +205,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     composable("main") {
-                        Main(navController)
+                        MainScreen(navController)
                     }
                 }
             }
@@ -215,15 +215,15 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Main(navHostController: NavHostController) {
+fun MainScreen(navHostController: NavHostController) {
     val context = LocalContext.current
-    val versionDbHelper = VersionDatabaseHelper(context)
-    val versionDbViewModel: VersionDatabaseViewModel = viewModel()
+    val versionDatabase = VersionDatabase(context)
+    val savedVersionsViewModel: SavedVersionsViewModel = viewModel()
     LaunchedEffect(Unit) {
-        versionDbViewModel.loadSavedVersions(context)
+        savedVersionsViewModel.reloadSavedVersions(context)
     }
 
-    val downloadedVersions = versionDbViewModel.downloadedVersions
+    val downloadedVersions = savedVersionsViewModel.downloadedVersions
     val showVersionSelector = remember { mutableStateOf(false) }
     val showSettings = remember { mutableStateOf(false) }
     val selectedIds = remember { mutableStateListOf<String>() }
@@ -236,12 +236,12 @@ fun Main(navHostController: NavHostController) {
     val versionsViewModels = remember {
         Build.SUPPORTED_ABIS
             .filter { Architecture.fromString(it) != Architecture.UNKNOWN }
-            .map { VersionsViewModel(it) }
+            .map { AvailableVersionsViewModel(it) }
     }
     var userProfileInfo by remember { mutableStateOf(listOf<String?>()) }
 
     LaunchedEffect(Unit) {
-        userProfileInfo = GPlayAPI.getUserProfileInfo(context)
+        userProfileInfo = GooglePlayClient.getUserProfileInfo(context)
     }
 
     Scaffold(
@@ -301,12 +301,12 @@ fun Main(navHostController: NavHostController) {
         var isRefreshing by remember { mutableStateOf(false) }
         val coroutineScope = rememberCoroutineScope()
 
-        DownloadedVersions(
+        SavedVersionsList(
             items = downloadedVersions,
             isRefreshing = isRefreshing,
             onRefresh = {
                 isRefreshing = true
-                versionDbViewModel.loadSavedVersions(context)
+                savedVersionsViewModel.reloadSavedVersions(context)
                 coroutineScope.launch {
                     delay(500)
                     isRefreshing = false
@@ -320,7 +320,7 @@ fun Main(navHostController: NavHostController) {
             onRemoveVersion = {
                 removingIds.remove(it)
                 DownloadTracker.cancel(context, it)
-                versionDbHelper.removeVersion(it)
+                versionDatabase.removeVersion(it)
                 val fileToDelete = Storage.versionDir(it)
                 if (fileToDelete.exists()) fileToDelete.deleteRecursively()
                 downloadedVersions.remove(downloadedVersions.find { version -> version.installationId == it })
@@ -328,7 +328,7 @@ fun Main(navHostController: NavHostController) {
             modifier = Modifier.padding(innerPadding),
         )
 
-        VersionSelector(
+        VersionSelectorDialog(
             versionsViewModels = versionsViewModels,
             showDialog = showVersionSelector.value,
             addedVersions = downloadedVersions.map { "${it.versionCode}|${it.architecture.arch}" }.toSet(),
@@ -338,16 +338,16 @@ fun Main(navHostController: NavHostController) {
                 val existing = downloadedVersions.map { "${it.versionCode}|${it.architecture.arch}" }.toMutableSet()
                 versions.filter { existing.add("${it.code}|${it.architecture.arch}") }.forEachIndexed { index, version ->
                     val newVersion =
-                        SavedVersionData(
+                        SavedVersion(
                             UUID.randomUUID().toString(),
                             version.name,
                             version.code.toString(),
                             version.name,
                             version.architecture,
-                            Status.NOT_DOWNLOADED,
+                            VersionStatus.NOT_DOWNLOADED,
                             now + index,
                         )
-                    versionDbHelper.addVersion(newVersion)
+                    versionDatabase.insertVersion(newVersion)
                     downloadedVersions.add(newVersion)
                 }
             },
@@ -382,8 +382,8 @@ private val client = OkHttpClient()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DownloadedVersions(
-    items: SnapshotStateList<SavedVersionData>,
+fun SavedVersionsList(
+    items: SnapshotStateList<SavedVersion>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onRemoveVersion: (String) -> Unit,
@@ -392,17 +392,17 @@ fun DownloadedVersions(
     onToggleSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val versionDbViewModel: VersionDatabaseViewModel = viewModel()
+    val savedVersionsViewModel: SavedVersionsViewModel = viewModel()
     val context = LocalContext.current
     val isUpdating = remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         try {
-            getPackageInfo(context, MINECRAFT_PACKAGE)
+            getInstalledPackageInfo(context, MINECRAFT_PACKAGE)
         } catch (_: Exception) {
             items.forEach {
-                if (it.status == Status.INSTALLED) {
-                    updateInfo(context, it.copy(status = Status.NOT_INSTALLED))
-                    versionDbViewModel.loadSavedVersions(context)
+                if (it.status == VersionStatus.INSTALLED) {
+                    persistVersionUpdate(context, it.copy(status = VersionStatus.NOT_INSTALLED))
+                    savedVersionsViewModel.reloadSavedVersions(context)
                 }
             }
         }
@@ -413,11 +413,11 @@ fun DownloadedVersions(
             PackageStatusReceiver { packageName ->
                 if (packageName == MINECRAFT_PACKAGE && !isUpdating.value) {
                     items.forEach {
-                        if (it.status == Status.INSTALLED) {
-                            updateInfo(context, it.copy(status = Status.NOT_INSTALLED))
+                        if (it.status == VersionStatus.INSTALLED) {
+                            persistVersionUpdate(context, it.copy(status = VersionStatus.NOT_INSTALLED))
                         }
                     }
-                    versionDbViewModel.loadSavedVersions(context)
+                    savedVersionsViewModel.reloadSavedVersions(context)
                 }
             }
         }
@@ -441,7 +441,7 @@ fun DownloadedVersions(
     ) {
         LazyColumn(Modifier.fillMaxSize()) {
             items(items.reversed(), key = { it.installationId }) {
-                VersionItem(
+                VersionCard(
                     it,
                     onRemoveVersion,
                     isUpdating = isUpdating,
@@ -450,17 +450,17 @@ fun DownloadedVersions(
                     isRemoving = it.installationId in removingIds,
                     onToggleSelect = { onToggleSelect(it.installationId) },
                 ) { status ->
-                    if (status == Status.INSTALLED) {
+                    if (status == VersionStatus.INSTALLED) {
                         items.forEach { version ->
-                            if (version.installationId != it.installationId && version.status == Status.INSTALLED) {
-                                updateInfo(context, version.copy(status = Status.NOT_INSTALLED))
+                            if (version.installationId != it.installationId && version.status == VersionStatus.INSTALLED) {
+                                persistVersionUpdate(context, version.copy(status = VersionStatus.NOT_INSTALLED))
                             }
                         }
                     }
-                    updateInfo(
+                    persistVersionUpdate(
                         context,
                         it.copy(status = status),
-                        versionDbViewModel,
+                        savedVersionsViewModel,
                     )
                 }
             }
@@ -468,37 +468,37 @@ fun DownloadedVersions(
     }
 }
 
-private fun updateInfo(
+private fun persistVersionUpdate(
     context: Context,
-    savedVersionData: SavedVersionData,
-    versionDbViewModel: VersionDatabaseViewModel = VersionDatabaseViewModel(),
-    downloadedVersions: SnapshotStateList<SavedVersionData> = versionDbViewModel.downloadedVersions,
+    savedVersion: SavedVersion,
+    savedVersionsViewModel: SavedVersionsViewModel = SavedVersionsViewModel(),
+    downloadedVersions: SnapshotStateList<SavedVersion> = savedVersionsViewModel.downloadedVersions,
 ) {
-    VersionDatabaseHelper(context).editVersion(savedVersionData)
-    val index = versionDbViewModel.getIndexById(savedVersionData.installationId)
+    VersionDatabase(context).updateVersion(savedVersion)
+    val index = savedVersionsViewModel.indexOfVersion(savedVersion.installationId)
     if (index != -1) {
-        downloadedVersions[index] = savedVersionData
+        downloadedVersions[index] = savedVersion
     }
 }
 
 @Composable
-fun VersionItem(
-    savedVersionData: SavedVersionData,
+fun VersionCard(
+    savedVersion: SavedVersion,
     onRemoveVersion: (String) -> Unit = {},
     isUpdating: MutableState<Boolean> = mutableStateOf(false),
     selected: Boolean = false,
     selectionMode: Boolean = false,
     isRemoving: Boolean = false,
     onToggleSelect: () -> Unit = {},
-    updateStatus: (Status) -> Unit = {},
+    updateStatus: (VersionStatus) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val downloadId = savedVersionData.installationId
+    val downloadId = savedVersion.installationId
     val downloadInfo = DownloadTracker.info[downloadId]
     LaunchedEffect(downloadId) {
-        if (savedVersionData.status == Status.DOWNLOADING && !DownloadTracker.isActive(downloadId)) {
-            updateStatus(Status.NOT_DOWNLOADED)
+        if (savedVersion.status == VersionStatus.DOWNLOADING && !DownloadTracker.isDownloading(downloadId)) {
+            updateStatus(VersionStatus.NOT_DOWNLOADED)
         }
     }
     val installProgress = remember { mutableIntStateOf(-1) }
@@ -507,12 +507,12 @@ fun VersionItem(
         targetValue = if (isRemoving) 0f else 1f,
         label = "alpha",
         finishedListener = {
-            if (isRemoving) onRemoveVersion(savedVersionData.installationId)
+            if (isRemoving) onRemoveVersion(savedVersion.installationId)
         },
     )
 
-    VersionItemLayout(
-        savedVersionData = savedVersionData,
+    VersionCardContent(
+        savedVersion = savedVersion,
         animatedAlpha = animatedAlpha,
         isRemoving = isRemoving,
         selected = selected,
@@ -526,7 +526,7 @@ fun VersionItem(
                 withContext(Dispatchers.Main) {
                     handleVersionAction(
                         action,
-                        savedVersionData,
+                        savedVersion,
                         context,
                         installProgress,
                         isLoading,
@@ -541,8 +541,8 @@ fun VersionItem(
 }
 
 @Composable
-fun VersionItemLayout(
-    savedVersionData: SavedVersionData,
+fun VersionCardContent(
+    savedVersion: SavedVersion,
     animatedAlpha: Float,
     isRemoving: Boolean,
     selected: Boolean,
@@ -556,7 +556,7 @@ fun VersionItemLayout(
     val context = LocalContext.current
     val currentSelectionMode by rememberUpdatedState(selectionMode)
     val currentToggle by rememberUpdatedState(onToggleSelect)
-    val isDownloading = savedVersionData.status == Status.DOWNLOADING
+    val isDownloading = savedVersion.status == VersionStatus.DOWNLOADING
     val cardColor by animateColorAsState(
         targetValue =
             if (selected) {
@@ -616,11 +616,11 @@ fun VersionItemLayout(
                             .weight(1f),
                 ) {
                     Text(
-                        savedVersionData.versionName,
+                        savedVersion.versionName,
                         style = MaterialTheme.typography.titleLarge,
                     )
-                    Info("Code: ${savedVersionData.versionCode}")
-                    Info("Architecture: ${savedVersionData.architecture.arch}")
+                    InfoText("Code: ${savedVersion.versionCode}")
+                    InfoText("Architecture: ${savedVersion.architecture.arch}")
 
                     val lastInfo = remember { mutableStateOf(DownloadInfo()) }
                     if (downloadInfo != null) lastInfo.value = downloadInfo
@@ -646,8 +646,8 @@ fun VersionItemLayout(
                                     }
                                 }.alpha(reveal),
                         ) {
-                            Info("Speed: ${formatSpeed(dl.speed)} • ETA ${formatEta(dl.etaSeconds)}")
-                            Info("${formatBytes(dl.downloaded)} / ${formatBytes(dl.total)} (${(dl.fraction * 100).toInt()}%)")
+                            InfoText("Speed: ${formatSpeed(dl.speed)} • ETA ${formatEta(dl.etaSeconds)}")
+                            InfoText("${formatBytes(dl.downloaded)} / ${formatBytes(dl.total)} (${(dl.fraction * 100).toInt()}%)")
                             LinearProgressIndicator(
                                 progress = { animatedFraction },
                                 modifier =
@@ -657,11 +657,11 @@ fun VersionItemLayout(
                             )
                         }
                     }
-                    if (installProgress > -1) Info("Installing... $installProgress%")
+                    if (installProgress > -1) InfoText("Installing... $installProgress%")
                 }
 
-                GetActionButton(
-                    savedVersionData,
+                VersionActionButton(
+                    savedVersion,
                     Modifier
                         .padding(8.dp)
                         .size(48.dp)
@@ -677,16 +677,16 @@ fun VersionItemLayout(
 }
 
 @Composable
-private fun GetActionButton(
-    savedVersionData: SavedVersionData,
+private fun VersionActionButton(
+    savedVersion: SavedVersion,
     buttonModifier: Modifier,
     isLoading: Boolean,
     enabled: Boolean,
     context: Context,
     onVersionAction: (VersionAction) -> Unit,
 ) {
-    when (savedVersionData.status) {
-        Status.INSTALLED -> {
+    when (savedVersion.status) {
+        VersionStatus.INSTALLED -> {
             ActionButton(
                 icon = Icons.Default.PlayArrow,
                 backgroundColor = MaterialTheme.colorScheme.primary,
@@ -701,7 +701,7 @@ private fun GetActionButton(
             )
         }
 
-        Status.NOT_INSTALLED -> {
+        VersionStatus.NOT_INSTALLED -> {
             ActionButton(
                 icon = Icons.Default.InstallMobile,
                 backgroundColor = MaterialTheme.colorScheme.primary,
@@ -712,7 +712,7 @@ private fun GetActionButton(
             )
         }
 
-        Status.NOT_DOWNLOADED -> {
+        VersionStatus.NOT_DOWNLOADED -> {
             ActionButton(
                 icon = Icons.Default.Download,
                 backgroundColor = MaterialTheme.colorScheme.primary,
@@ -723,7 +723,7 @@ private fun GetActionButton(
             )
         }
 
-        Status.DOWNLOADING -> {
+        VersionStatus.DOWNLOADING -> {
             val expanded = remember { mutableStateOf(false) }
             ActionButton(
                 icon = Icons.Default.MoreHoriz,
@@ -733,7 +733,7 @@ private fun GetActionButton(
                 enabled = enabled,
                 onClick = { expanded.value = true },
             ) {
-                DropDown(
+                DropdownActionMenu(
                     menu =
                         listOf(
                             "Cancel" to { onVersionAction(VersionAction.CancelDownload) },
@@ -747,87 +747,87 @@ private fun GetActionButton(
 
 suspend fun handleVersionAction(
     action: VersionAction,
-    savedVersionData: SavedVersionData,
+    savedVersion: SavedVersion,
     context: Context,
     installProgress: MutableIntState,
     isLoading: MutableState<Boolean>,
     isUpdating: MutableState<Boolean>,
     coroutineScope: CoroutineScope,
-    updateStatus: (Status) -> Unit,
+    updateStatus: (VersionStatus) -> Unit,
 ) {
     when (action) {
         is VersionAction.StartDownload -> {
-            if (!Storage.hasAccess(context)) {
+            if (!Storage.hasStorageAccess(context)) {
                 Toast.makeText(context, "Allow access to all files to save versions to /Launchly", Toast.LENGTH_LONG).show()
-                Storage.requestAccess(context)
+                Storage.requestStorageAccess(context)
                 return
             }
             var totalSize = 0L
             try {
                 val urlToFileNameMap =
-                    getApks(savedVersionData.versionCode.toInt(), context).associate { apk ->
+                    getApks(savedVersion.versionCode.toInt(), context).associate { apk ->
                         totalSize += apk.size
                         apk.name to apk.url
                     }
-                val id = savedVersionData.installationId
+                val id = savedVersion.installationId
                 val appContext = context.applicationContext
-                DownloadTracker.begin(appContext, id, savedVersionData.name, totalSize)
-                updateStatus(Status.DOWNLOADING)
-                DownloadTracker.newDownloader(id, client).startDownload(
+                DownloadTracker.startTracking(appContext, id, savedVersion.name, totalSize)
+                updateStatus(VersionStatus.DOWNLOADING)
+                DownloadTracker.createDownloader(id, client).startDownload(
                     urlToFileNameMap,
-                    Storage.versionDir(savedVersionData.installationId),
+                    Storage.versionDir(savedVersion.installationId),
                 ) { status ->
                     when (status) {
-                        is Downloader.DownloadStatus.OnProgress -> {
-                            DownloadTracker.update(appContext, id, status.downloadedSize, status.speed)
+                        is Downloader.DownloadStatus.Progress -> {
+                            DownloadTracker.updateProgress(appContext, id, status.downloadedSize, status.speed)
                         }
 
-                        is Downloader.DownloadStatus.OnFinish -> {
-                            DownloadTracker.end(appContext, id)
-                            updateStatus(Status.NOT_INSTALLED)
+                        is Downloader.DownloadStatus.AllFinished -> {
+                            DownloadTracker.finishTracking(appContext, id)
+                            updateStatus(VersionStatus.NOT_INSTALLED)
                         }
 
-                        is Downloader.DownloadStatus.OnFailure -> {
-                            DownloadTracker.end(appContext, id)
-                            updateStatus(Status.NOT_DOWNLOADED)
+                        is Downloader.DownloadStatus.Failure -> {
+                            DownloadTracker.finishTracking(appContext, id)
+                            updateStatus(VersionStatus.NOT_DOWNLOADED)
                         }
 
-                        is Downloader.DownloadStatus.OnCancel -> {
-                            DownloadTracker.end(appContext, id)
-                            updateStatus(Status.NOT_DOWNLOADED)
+                        is Downloader.DownloadStatus.Cancelled -> {
+                            DownloadTracker.finishTracking(appContext, id)
+                            updateStatus(VersionStatus.NOT_DOWNLOADED)
                         }
 
-                        is Downloader.DownloadStatus.OnDownloadSuccess -> Unit
+                        is Downloader.DownloadStatus.FileDownloaded -> Unit
                     }
                 }
             } catch (e: Exception) {
-                DownloadTracker.end(context, savedVersionData.installationId)
+                DownloadTracker.finishTracking(context, savedVersion.installationId)
                 Toast.makeText(context, "This account didn't buy Minecraft, is this the right Account?", Toast.LENGTH_SHORT).show()
             }
         }
 
         is VersionAction.CancelDownload -> {
-            DownloadTracker.downloader(savedVersionData.installationId)?.cancelAll()
+            DownloadTracker.getDownloader(savedVersion.installationId)?.cancelAll()
         }
 
         is VersionAction.Install -> {
             isLoading.value = true
             val apks =
-                Storage.versionDir(savedVersionData.installationId).listFiles { file ->
+                Storage.versionDir(savedVersion.installationId).listFiles { file ->
                     file.isFile &&
                         file.name.endsWith(".apk")
                 }
             if (apks != null && apks.isNotEmpty()) {
                 val onResult: (SessionResult) -> Unit = {
                     when (it) {
-                        is SessionResult.OnProgress -> {
+                        is SessionResult.Progress -> {
                             installProgress.intValue = it.progress
                         }
 
-                        is SessionResult.OnSuccess -> {
+                        is SessionResult.Success -> {
                             installProgress.intValue = -1
                             isLoading.value = false
-                            updateStatus(Status.INSTALLED)
+                            updateStatus(VersionStatus.INSTALLED)
 
                             coroutineScope.launch {
                                 delay(500)
@@ -835,13 +835,13 @@ suspend fun handleVersionAction(
                             }
                         }
 
-                        is SessionResult.OnFailure -> {
+                        is SessionResult.Failure -> {
                             installProgress.intValue = -1
                             isLoading.value = false
                             isUpdating.value = false
                         }
 
-                        is SessionResult.OnCancel -> {
+                        is SessionResult.Cancelled -> {
                             installProgress.intValue = -1
                             isLoading.value = false
                             isUpdating.value = false
@@ -849,10 +849,10 @@ suspend fun handleVersionAction(
                     }
                 }
                 try {
-                    val versionCode = getPackageInfo(context, MINECRAFT_PACKAGE).let { PackageInfoCompat.getLongVersionCode(it) }
-                    if (versionCode > savedVersionData.versionCode.toLong()) {
-                        uninstallApp(context, MINECRAFT_PACKAGE) { status ->
-                            if (status == SessionResult.OnSuccess) {
+                    val versionCode = getInstalledPackageInfo(context, MINECRAFT_PACKAGE).let { PackageInfoCompat.getLongVersionCode(it) }
+                    if (versionCode > savedVersion.versionCode.toLong()) {
+                        uninstallPackage(context, MINECRAFT_PACKAGE) { status ->
+                            if (status == SessionResult.Success) {
                                 installPackage(context, apks, onResult)
                             } else {
                                 isLoading.value = false

@@ -14,11 +14,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -38,19 +38,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.akres.launchly.utils.Architecture
-import com.akres.launchly.utils.VersionData
-import com.akres.launchly.utils.VersionsViewModel
+import com.akres.launchly.utils.AvailableVersion
+import com.akres.launchly.utils.AvailableVersionsViewModel
 
 @Composable
-fun VersionSelector(
+fun VersionSelectorDialog(
     showDialog: Boolean,
-    versionsViewModels: List<VersionsViewModel>,
+    versionsViewModels: List<AvailableVersionsViewModel>,
     addedVersions: Set<String> = emptySet(),
-    onConfirmation: (versions: List<VersionData>) -> Unit,
+    onConfirmation: (versions: List<AvailableVersion>) -> Unit,
 ) {
     val archs = (Build.SUPPORTED_ABIS.map { Architecture.fromString(it).arch }).filter { it != "unknown" }
     var selectedArch by remember { mutableStateOf(Architecture.ARM64) }
-    val selectedVersions = remember { mutableStateListOf<VersionData>() }
+    val selectedVersions = remember { mutableStateListOf<AvailableVersion>() }
     var searchQuery by remember { mutableStateOf("") }
 
     val context = LocalContext.current
@@ -103,7 +103,7 @@ fun VersionSelector(
                     .weight(1f),
             ) {
                 val viewModel = versionsViewModels[selectedArch.ordinal]
-                val versionData by viewModel.versionData.collectAsState()
+                val versions by viewModel.versions.collectAsState()
                 val isLoading by viewModel.isLoading.collectAsState()
                 val error by viewModel.error.collectAsState()
 
@@ -118,7 +118,7 @@ fun VersionSelector(
 
                     else -> {
                         val filteredVersions =
-                            versionData.filter {
+                            versions.filter {
                                 it.name.contains(searchQuery, ignoreCase = true) ||
                                     it.code.toString().contains(searchQuery)
                             }
@@ -146,7 +146,7 @@ fun VersionSelector(
             TextButton(
                 onClick = {
                     val ordered =
-                        versionsViewModels.flatMap { vm -> vm.versionData.value.filter { it in selectedVersions } }
+                        versionsViewModels.flatMap { vm -> vm.versions.value.filter { it in selectedVersions } }
                     onConfirmation(ordered)
                     selectedArch = Architecture.ARM64
                     selectedVersions.clear()
@@ -166,7 +166,7 @@ fun VersionSelector(
 
 @Composable
 fun VersionRow(
-    version: VersionData,
+    version: AvailableVersion,
     selected: Boolean,
     added: Boolean = false,
     onClick: () -> Unit,

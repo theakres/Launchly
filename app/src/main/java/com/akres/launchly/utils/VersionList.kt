@@ -12,29 +12,29 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.Serializable
 
-data class VersionData(
+data class AvailableVersion(
     val code: Long,
     val name: String,
     val architecture: Architecture,
 ) : Serializable
 
-class VersionsViewModel(
+class AvailableVersionsViewModel(
     private val arch: String,
 ) : ViewModel() {
     private val client = OkHttpClient()
 
-    private val _versionData = MutableStateFlow<List<VersionData>>(emptyList())
-    val versionData: StateFlow<List<VersionData>> get() = _versionData
+    private val _versions = MutableStateFlow<List<AvailableVersion>>(emptyList())
+    val versions: StateFlow<List<AvailableVersion>> get() = _versions
 
     val isLoading = MutableStateFlow(false)
     val error = MutableStateFlow<String?>(null)
 
     init {
-        fetchVersions()
+        loadVersions()
     }
 
-    private fun fetchVersions() {
-        if (isLoading.value || _versionData.value.isNotEmpty()) return
+    private fun loadVersions() {
+        if (isLoading.value || _versions.value.isNotEmpty()) return
         isLoading.value = true
         viewModelScope.launch {
             try {
@@ -52,8 +52,8 @@ class VersionsViewModel(
                 if (result.isSuccessful) {
                     val jsonResponse = result.body?.string()
                     jsonResponse?.let {
-                        val parsedData = parseVersionData(it)
-                        _versionData.value = parsedData
+                        val parsedData = parseVersions(it)
+                        _versions.value = parsedData
                     }
                 } else {
                     error.value = "Failed to fetch data: ${result.code}"
@@ -67,7 +67,7 @@ class VersionsViewModel(
         }
     }
 
-    private fun parseVersionData(jsonString: String): List<VersionData> =
+    private fun parseVersions(jsonString: String): List<AvailableVersion> =
         jsonString
             .removeSurrounding("[[", "]]")
             .split("],[")
@@ -78,6 +78,6 @@ class VersionsViewModel(
                         .map { part -> part.trim('"') }
                 Triple(versionCode.toLong(), versionName, channel.toInt())
             }.filter { (code, _, type) -> type == 0 && code >= 871000500 }
-            .map { (code, name, _) -> VersionData(code, name, Architecture.fromString(arch)) }
+            .map { (code, name, _) -> AvailableVersion(code, name, Architecture.fromString(arch)) }
             .reversed()
 }

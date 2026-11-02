@@ -24,19 +24,19 @@ object DownloadTracker {
     private val names = ConcurrentHashMap<String, String>()
     private var lastNotify = 0L
 
-    fun isActive(id: String) = names.containsKey(id)
+    fun isDownloading(id: String) = names.containsKey(id)
 
-    fun hasActive() = names.isNotEmpty()
+    fun hasActiveDownloads() = names.isNotEmpty()
 
-    fun newDownloader(
+    fun createDownloader(
         id: String,
         client: OkHttpClient,
     ): Downloader = Downloader(client).also { downloaders[id] = it }
 
-    fun downloader(id: String): Downloader? = downloaders[id]
+    fun getDownloader(id: String): Downloader? = downloaders[id]
 
     @Synchronized
-    fun begin(
+    fun startTracking(
         context: Context,
         id: String,
         name: String,
@@ -54,7 +54,7 @@ object DownloadTracker {
         notifyProgress(app, force = true)
     }
 
-    fun update(
+    fun updateProgress(
         context: Context,
         id: String,
         downloaded: Long,
@@ -70,11 +70,11 @@ object DownloadTracker {
         id: String,
     ) {
         downloaders[id]?.cancelAll()
-        end(context, id)
+        finishTracking(context, id)
     }
 
     @Synchronized
-    fun end(
+    fun finishTracking(
         context: Context,
         id: String,
     ) {
@@ -110,7 +110,7 @@ object DownloadTracker {
         val title = if (live.size == 1) live.values.first() else "Downloading ${live.size} versions"
         val percent = if (total > 0) (downloaded * 100 / total).toInt() else 0
         val text = "$percent% • ${formatBytes(downloaded)} / ${formatBytes(total)} • ${formatSpeed(speed)}"
-        DownloadNotifications.show(app, title, text, percent)
+        DownloadNotifications.showNotification(app, title, text, percent)
     }
 }
 

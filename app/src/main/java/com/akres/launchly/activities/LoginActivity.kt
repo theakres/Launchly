@@ -68,7 +68,7 @@ class LoginActivity : Activity() {
                             "(function() { var e = document.querySelector('[data-profile-identifier]'); return e ? e.innerHTML : null; })();",
                         ) {
                             val email = it?.replace("\"", "")?.trim()
-                            retrieveAc2dmToken(
+                            fetchAc2dmToken(
                                 if (email.isNullOrEmpty() || email == "null") null else email,
                                 token,
                             )
@@ -87,7 +87,7 @@ class LoginActivity : Activity() {
         }
     }
 
-    private fun retrieveAc2dmToken(
+    private fun fetchAc2dmToken(
         email: String?,
         oAuthToken: String?,
     ) {
@@ -98,7 +98,7 @@ class LoginActivity : Activity() {
             return
         }
         Thread {
-            val (result, error) = getAC2DMResponse(email, oAuthToken)
+            val (result, error) = requestAc2dmResponse(email, oAuthToken)
             runOnUiThread {
                 if (result.isNotEmpty() && result["Token"] != null) {
                     val intent =
@@ -117,7 +117,7 @@ class LoginActivity : Activity() {
         }.start()
     }
 
-    private fun getAC2DMResponse(
+    private fun requestAc2dmResponse(
         email: String,
         oAuthToken: String,
     ): Pair<Map<String, String>, String> {

@@ -21,7 +21,7 @@ import java.util.UUID
 
 const val MINECRAFT_PACKAGE = "com.mojang.minecraftpe"
 
-fun getPackageInfo(
+fun getInstalledPackageInfo(
     context: Context,
     packageName: String,
     flags: Int = 0,
@@ -48,30 +48,30 @@ fun installPackage(
         )
     val subscription = DisposableSubscriptionContainer()
     session.addProgressListener(subscription) { _, progress ->
-        onStatus(SessionResult.OnProgress(progress.progress))
+        onStatus(SessionResult.Progress(progress.progress))
     }
     session.addStateListener(
         subscription,
         object : Session.TerminalStateListener<InstallFailure>(session) {
             override fun onSuccess(sessionId: UUID) {
-                onStatus(SessionResult.OnSuccess)
+                onStatus(SessionResult.Success)
             }
 
             override fun onFailure(
                 sessionId: UUID,
                 failure: InstallFailure,
             ) {
-                onStatus(SessionResult.OnFailure(failure.message ?: "Unknown error"))
+                onStatus(SessionResult.Failure(failure.message ?: "Unknown error"))
             }
 
             override fun onCancelled(sessionId: UUID) {
-                onStatus(SessionResult.OnCancel)
+                onStatus(SessionResult.Cancelled)
             }
         },
     )
 }
 
-fun uninstallApp(
+fun uninstallPackage(
     context: Context,
     packageName: String,
     onStatus: (SessionResult) -> Unit,
@@ -88,33 +88,33 @@ fun uninstallApp(
         DisposableSubscriptionContainer(),
         object : Session.TerminalStateListener<UninstallFailure>(session) {
             override fun onSuccess(sessionId: UUID) {
-                onStatus(SessionResult.OnSuccess)
+                onStatus(SessionResult.Success)
             }
 
             override fun onFailure(
                 sessionId: UUID,
                 failure: UninstallFailure,
             ) {
-                onStatus(SessionResult.OnFailure("Unknown error"))
+                onStatus(SessionResult.Failure("Unknown error"))
             }
 
             override fun onCancelled(sessionId: UUID) {
-                onStatus(SessionResult.OnCancel)
+                onStatus(SessionResult.Cancelled)
             }
         },
     )
 }
 
 sealed class SessionResult {
-    data object OnSuccess : SessionResult()
+    data object Success : SessionResult()
 
-    data class OnFailure(
+    data class Failure(
         val message: String? = null,
     ) : SessionResult()
 
-    data class OnProgress(
+    data class Progress(
         val progress: Int,
     ) : SessionResult()
 
-    data object OnCancel : SessionResult()
+    data object Cancelled : SessionResult()
 }

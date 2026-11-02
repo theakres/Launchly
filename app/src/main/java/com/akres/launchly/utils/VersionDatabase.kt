@@ -9,26 +9,26 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
 import java.io.Serializable
 
-class VersionDatabaseViewModel : ViewModel() {
-    private val _downloadedVersions = mutableStateListOf<SavedVersionData>()
-    val downloadedVersions: SnapshotStateList<SavedVersionData> get() = _downloadedVersions
+class SavedVersionsViewModel : ViewModel() {
+    private val _downloadedVersions = mutableStateListOf<SavedVersion>()
+    val downloadedVersions: SnapshotStateList<SavedVersion> get() = _downloadedVersions
 
-    fun loadSavedVersions(context: Context) {
-        val versionDbHelper = VersionDatabaseHelper(context)
+    fun reloadSavedVersions(context: Context) {
+        val versionDatabase = VersionDatabase(context)
         _downloadedVersions.clear()
-        _downloadedVersions.addAll(versionDbHelper.getSavedVersions())
+        _downloadedVersions.addAll(versionDatabase.getAllVersions())
     }
 
-    fun getIndexById(id: String): Int = downloadedVersions.indexOfFirst { it.installationId == id }
+    fun indexOfVersion(id: String): Int = downloadedVersions.indexOfFirst { it.installationId == id }
 }
 
-data class SavedVersionData(
+data class SavedVersion(
     val installationId: String,
     val name: String,
     val versionCode: String,
     val versionName: String,
     val architecture: Architecture,
-    val status: Status,
+    val status: VersionStatus,
     val dateModified: Long,
 ) : Serializable
 
@@ -45,14 +45,14 @@ enum class Architecture(
     }
 }
 
-enum class Status {
+enum class VersionStatus {
     INSTALLED,
     DOWNLOADING,
     NOT_INSTALLED,
     NOT_DOWNLOADED,
 }
 
-class VersionDatabaseHelper(
+class VersionDatabase(
     context: Context,
 ) : SQLiteOpenHelper(context, "version.db", null, 1) {
     override fun onCreate(db: SQLiteDatabase) {
@@ -80,17 +80,17 @@ class VersionDatabaseHelper(
         onCreate(db)
     }
 
-    fun addVersion(savedVersionData: SavedVersionData) {
+    fun insertVersion(savedVersion: SavedVersion) {
         writableDatabase.use { db ->
             val values =
                 ContentValues().apply {
-                    put("id", savedVersionData.installationId)
-                    put("name", savedVersionData.name)
-                    put("versionCode", savedVersionData.versionCode)
-                    put("versionName", savedVersionData.versionName)
-                    put("architecture", savedVersionData.architecture.name)
-                    put("status", savedVersionData.status.name)
-                    put("dateModified", savedVersionData.dateModified)
+                    put("id", savedVersion.installationId)
+                    put("name", savedVersion.name)
+                    put("versionCode", savedVersion.versionCode)
+                    put("versionName", savedVersion.versionName)
+                    put("architecture", savedVersion.architecture.name)
+                    put("status", savedVersion.status.name)
+                    put("dateModified", savedVersion.dateModified)
                 }
             db.insertWithOnConflict("versions", null, values, SQLiteDatabase.CONFLICT_REPLACE)
         }
@@ -102,13 +102,13 @@ class VersionDatabaseHelper(
         }
     }
 
-    fun getSavedVersions(): List<SavedVersionData> {
-        val savedVersions = mutableListOf<SavedVersionData>()
+    fun getAllVersions(): List<SavedVersion> {
+        val savedVersions = mutableListOf<SavedVersion>()
         readableDatabase.use { db ->
             db.query("versions", null, null, null, null, null, null).use { cursor ->
                 while (cursor.moveToNext()) {
                     savedVersions.add(
-                        SavedVersionData(
+                        SavedVersion(
                             installationId = cursor.getString(cursor.getColumnIndexOrThrow("id")),
                             name = cursor.getString(cursor.getColumnIndexOrThrow("name")),
                             versionCode = cursor.getString(cursor.getColumnIndexOrThrow("versionCode")),
@@ -117,7 +117,7 @@ class VersionDatabaseHelper(
                                 runCatching {
                                     Architecture.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("architecture")))
                                 }.getOrDefault(Architecture.UNKNOWN),
-                            status = Status.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("status"))),
+                            status = VersionStatus.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("status"))),
                             dateModified = cursor.getLong(cursor.getColumnIndexOrThrow("dateModified")),
                         ),
                     )
@@ -127,18 +127,18 @@ class VersionDatabaseHelper(
         return savedVersions
     }
 
-    fun editVersion(savedVersionData: SavedVersionData) {
+    fun updateVersion(savedVersion: SavedVersion) {
         writableDatabase.use { db ->
             val values =
                 ContentValues().apply {
-                    put("name", savedVersionData.name)
-                    put("versionCode", savedVersionData.versionCode)
-                    put("versionName", savedVersionData.versionName)
-                    put("architecture", savedVersionData.architecture.name)
-                    put("status", savedVersionData.status.name)
-                    put("dateModified", savedVersionData.dateModified)
+                    put("name", savedVersion.name)
+                    put("versionCode", savedVersion.versionCode)
+                    put("versionName", savedVersion.versionName)
+                    put("architecture", savedVersion.architecture.name)
+                    put("status", savedVersion.status.name)
+                    put("dateModified", savedVersion.dateModified)
                 }
-            db.update("versions", values, "id = ?", arrayOf(savedVersionData.installationId))
+            db.update("versions", values, "id = ?", arrayOf(savedVersion.installationId))
         }
     }
 }
